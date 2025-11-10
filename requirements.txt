@@ -1,0 +1,11 @@
+flask
+flask-cors
+python-dotenv
+requests
+amadeus
+openai
+geopy
+timezonefinder
+pytz
+python-dateutil
+gunicorn
