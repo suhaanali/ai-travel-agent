@@ -441,19 +441,20 @@ body {
 
 </head>
 
-<body class="bg-gray-50 w-full h-screen overflow-hidden">
-  <!-- Decorative floating elements -->
+<body class="bg-gray-50 m-0 p-0 w-full h-screen overflow-hidden">
+
+  <!-- ✨ Floating decorative elements -->
   <div class="floating-element floating-1"></div>
   <div class="floating-element floating-2"></div>
 
-  <!-- Error Boundary Container -->
+  <!-- Error Boundary -->
   <div id="error-boundary" class="hidden"></div>
 
-  <!-- Main Chat Container -->
-  <div class="absolute inset-0 flex flex-col bg-white border border-gray-100 overflow-hidden">
+  <!-- 🌍 Main Container -->
+  <div class="fixed inset-0 flex flex-col bg-white overflow-hidden">
 
-    <!-- Header (fixed at top, full width) -->
-    <header class="bg-gradient-to-r from-[#0B2C5E] to-[#B2924C] text-white px-4 py-3 shadow-md flex items-center space-x-3 z-10">
+    <!-- 🔹 Header -->
+    <header class="bg-gradient-to-r from-[#0B2C5E] to-[#B2924C] text-white flex items-center space-x-3 px-4 py-3 shadow-md z-10 w-full">
       <div class="bg-white p-1.5 rounded-xl shadow-md flex items-center justify-center border border-yellow-500/40">
         <img src="./static/Logo.jpg" alt="Logo" class="w-6 h-6 sm:w-8 sm:h-8 object-contain">
       </div>
@@ -463,13 +464,14 @@ body {
       </div>
     </header>
 
-    <!-- Chat Scrollable Area -->
-    <main id="chat-history" class="flex-1 overflow-y-auto px-3 py-4 bg-gray-50 mt-1">
+    <!-- 💬 Chat Area -->
+    <main id="chat-history" class="flex-1 overflow-y-auto bg-gray-50 px-3 py-4">
+
       <!-- Welcome Message -->
       <div class="flex justify-start">
-        <div class="bg-white shadow-sm p-3 rounded-lg w-full sm:w-[95%]">
+        <div class="agent-bubble">
           <div class="flex items-center space-x-3 mb-2">
-            <div class="w-8 h-8 rounded-full overflow-hidden shadow-sm flex items-center justify-center bg-white">
+            <div class="w-8 h-8 rounded-full overflow-hidden flex items-center justify-center bg-white shadow">
               <img src="./static/person.png" alt="AI Travel Agent" class="object-contain w-7 h-7">
             </div>
             <div>
@@ -482,21 +484,20 @@ body {
 
       <!-- Flight Tabs -->
       <div id="flight-tabs" class="hidden bg-white rounded-lg shadow-sm mt-4 w-full">
-        <div class="flex border-b border-gray-200 text-sm font-medium">
-          <button class="tab-btn active flex-1 text-center py-2" data-tab="tab1">One-way</button>
-          <button class="tab-btn flex-1 text-center py-2" data-tab="tab2">Round-trip</button>
+        <div class="flex border-b border-gray-200 text-sm font-medium w-full">
+          <button class="tab-btn active flex-1 text-center py-2 border-r border-gray-200" data-tab="tab1">One-way</button>
+          <button class="tab-btn flex-1 text-center py-2 border-r border-gray-200" data-tab="tab2">Round-trip</button>
           <button class="tab-btn flex-1 text-center py-2" data-tab="tab3">Multi-city</button>
         </div>
-
-        <div id="tab1" class="tab-content block p-3"></div>
-        <div id="tab2" class="tab-content hidden p-3"></div>
-        <div id="tab3" class="tab-content hidden p-3"></div>
+        <div id="tab1" class="tab-content block p-3 w-full"></div>
+        <div id="tab2" class="tab-content hidden p-3 w-full"></div>
+        <div id="tab3" class="tab-content hidden p-3 w-full"></div>
       </div>
     </main>
 
-    <!-- Input Area (sticky bottom) -->
-    <footer class="bg-white border-t border-gray-200 p-3 space-y-3 sticky bottom-0 w-full">
-      <!-- Selected Flights Summary -->
+    <!-- ✍️ Input Section -->
+    <footer class="bg-white border-t border-gray-200 p-3 space-y-3 w-full">
+      <!-- Flight Summary -->
       <div id="selected-flight-summary" class="multi-city-header hidden">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
           <div class="flex items-center space-x-3">
@@ -519,14 +520,14 @@ body {
         </div>
       </div>
 
-      <!-- Multi-copy Button -->
+      <!-- Copy Button -->
       <div id="multi-copy-container" class="hidden justify-center mt-3">
         <button id="multi-copy-btn" class="quick-action bg-gray-600 text-white">
           Copy 0 Selected Flights
         </button>
       </div>
 
-      <!-- Input Container -->
+      <!-- Input Bar -->
       <div class="flex gap-2 items-end">
         <textarea
           id="user-input"
@@ -554,7 +555,63 @@ body {
       </div>
     </footer>
   </div>
+
+  <!-- 💅 Style Fixes -->
+  <style>
+    /* spacing between chat bubbles */
+    #chat-history > div {
+      margin-bottom: 1rem;
+    }
+
+    /* user bubble */
+    .user-bubble {
+      background: #e9f5ff;
+      color: #0b2c5e;
+      padding: 10px 14px;
+      border-radius: 16px 16px 4px 16px;
+      max-width: 85%;
+      align-self: flex-end;
+      box-shadow: 0 1px 2px rgba(0, 0, 0, 0.05);
+      word-wrap: break-word;
+    }
+
+    /* agent bubble */
+    .agent-bubble {
+      background: #fff;
+      border-radius: 16px 16px 16px 4px;
+      max-width: 90%;
+      padding: 12px 14px;
+      box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+    }
+
+    /* breathing room */
+    #chat-history {
+      padding-bottom: 4.5rem !important;
+    }
+
+    /* make flight cards take full width */
+    .flight-card,
+    .flight-result,
+    .flight-offer {
+      width: 100% !important;
+      max-width: none !important;
+      margin: 0 auto;
+    }
+
+    /* responsive tweaks */
+    @media (max-width: 640px) {
+      main#chat-history {
+        padding-left: 0.75rem;
+        padding-right: 0.75rem;
+      }
+      .user-bubble,
+      .agent-bubble {
+        max-width: 95%;
+      }
+    }
+  </style>
 </body>
+
 
 
     <!-- Firebase & Application Script -->
