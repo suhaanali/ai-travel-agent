@@ -1509,20 +1509,10 @@ async function handleUserInput() {
     console.error('Agent communication failed:', error);
     const errorMessage = `I encountered an issue while processing your request. Please try again. (Error: ${error.message})`;
     await saveMessage(errorMessage, 'agent', 'text', null);
-} finally {
-  showLoading(false);
-  elements.sendBtn.disabled = false;
-
-  // ✅ Prevent unwanted mobile keyboard popup safely
-  const isMobile = /Mobi|Android/i.test(navigator.userAgent);
-  if (!isMobile) {
-    // Desktop: keep input ready
+  } finally {
+    showLoading(false);
+    elements.sendBtn.disabled = false;
     elements.userInput.focus();
-  } else {
-    // Mobile: don't blur immediately, wait a tick so send still works
-    setTimeout(() => {
-      elements.userInput.blur();
-    }, 500);
   }
 }
 
@@ -1661,17 +1651,8 @@ sendBtn.addEventListener("click", () => {
 
 // ✅ Enter = send, Shift+Enter = newline
 userInput.addEventListener("keydown", (e) => {
-  // Prevent accidental keyboard reopen or premature blur on mobile
-  const isMobile = /Mobi|Android/i.test(navigator.userAgent);
-
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
-
-    // Delay blur slightly so send click registers properly
-    if (isMobile) {
-      setTimeout(() => userInput.blur(), 300);
-    }
-
     sendBtn.click();
   }
 });
