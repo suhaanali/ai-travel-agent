@@ -33,8 +33,8 @@ else:
     print("[WARN] ⚠️ No FLASK_SECRET_KEY found — generating temporary key.")
     app.secret_key = os.urandom(24)
 
-# --- Enable CORS with credentials for session cookies ---
-CORS(app, supports_credentials=True)
+# ✅ Allow only your Render frontend origin
+CORS(app, resources={r"/api/*": {"origins": "https://ai-travel-agent-frontend-4djj.onrender.com"}})
 
 # --- Confirm key actually attached ---
 print("[DEBUG] Flask secret key active:", bool(app.secret_key))
@@ -1905,3 +1905,4 @@ def serve_index():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
+
