@@ -1513,7 +1513,7 @@ async function handleUserInput() {
         // Global handler
         window.handleMenuSelection = async function(optionId) {
             try {
-                const response = await fetch('http://localhost:5000/api/flow', {
+                const response = await fetch(CONFIG.BACKEND_URL.replace('/api/search', '/api/flow'), {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
