@@ -1,1 +1,1587 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Travel Agent - Your Smart Travel Companion</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
 
+
+<style>
+/* ======================================================
+   AI Travel Agent – Clean Compact UI (v3)
+   Palette: Navy (#0B2C5E) + Gold (#B2924C) + Green (#1EAD64)
+====================================================== */
+#loading-indicator {
+  display: none !important;
+  visibility: hidden !important;
+}
+
+/* ---------- GLOBAL ---------- */
+body {
+  font-family: "Inter", "Poppins", sans-serif;
+  font-size: 13px;
+  background: #f8fafc;
+  color: #333;
+  line-height: 1.4;
+  padding: 12px;
+}
+
+/* ---------- MAIN CONTAINER ---------- */
+.compact-container {
+  max-width: 420px;
+  height: 640px;
+  margin: 0 auto;
+  background: #fff;
+  border-radius: 20px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.08);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+/* ---------- HEADER ---------- */
+.compact-header {
+  background: linear-gradient(90deg, #0B2C5E 0%, #B2924C 100%);
+  color: #fff;
+  padding: 16px 20px;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+}
+.compact-header h1 {
+  font-size: 17px;
+  font-weight: 700;
+  margin: 0;
+}
+.compact-header p {
+  font-size: 12px;
+  opacity: 0.9;
+}
+
+/* ---------- CHAT SECTION ---------- */
+.compact-messages {
+  flex: 1;
+  padding: 16px;
+  overflow-y: auto;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.compact-bubble {
+  padding: 10px 14px;
+  border-radius: 16px;
+  box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+  animation: fadeIn 0.3s ease;
+}
+
+/* ✅ Final wrapping fix — clean, reliable, mobile-safe */
+/* ✅ FINAL FIX: multi-line wrapping for user and agent bubbles */
+.user-bubble,
+.agent-bubble {
+  display: block !important;           /* inline-block still gets overridden under flex */
+  max-width: 80%;
+  white-space: normal !important;      /* force wrapping */
+  word-wrap: break-word !important;
+  overflow-wrap: break-word !important;
+  line-height: 1.5;
+  text-align: left;
+}
+
+/* ✅ fix the flex parent container */
+.compact-messages > .flex {
+  align-items: flex-start !important;
+  flex-wrap: wrap !important;
+  width: 100%;
+  gap: 0.25rem;
+}
+
+/* optional: ensure internal <br> or markdown formatting render correctly */
+.user-bubble br,
+.agent-bubble br {
+  display: block;
+  margin-bottom: 0.25rem;
+  content: "";
+}
+
+
+
+
+/* AGENT BUBBLE */
+.agent-bubble {
+  background: #fff;
+  align-self: flex-start;
+  max-width: 95%;
+  border-radius: 14px;
+}
+
+/* ---------- FLIGHT HEADER BANNER ---------- */
+.header-gradient {
+  background: linear-gradient(90deg, #0B2C5E 0%, #B2924C 100%);
+  color: #fff;
+  font-size: 12.5px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 8px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.1);
+  margin-bottom: 8px;
+}
+
+/* ---------- TABS ---------- */
+/* --- Tabs Row --- */
+.tab-buttons {
+  display: flex;
+  justify-content: center;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid #e5e7eb;
+  background: #fff;
+}
+
+/* --- Individual Tab Buttons --- */
+.tab-btn {
+  flex: 0 0 auto; /* prevents full stretch */
+  padding: 6px 14px;
+  font-size: 8px;
+  font-weight: 600;
+  color: #030f21;
+  border-radius: 8px;
+  background: #fcfcfc;
+  border: 1px solid #e5e7eb;
+  cursor: pointer;
+  transition: all 0.2s ease-in-out;
+}
+
+.tab-btn:hover {
+  background: #f1f5f9;
+  color: #0B2C5E;
+  border-color: #cbd5e1;
+}
+
+/* --- Active Tab --- */
+.tab-btn.active {
+  background: #ffffff;
+  color: ##11546d;
+  border: 1px solid #8a8eab;
+  font-weight: 900;
+  box-shadow: 0 2px 4px rgba(11, 44, 94, 0.25);
+}
+
+/* --- Tab Content --- */
+.tab-content {
+  padding: 10px 12px;
+}
+
+
+/* ---------- FLIGHT CARD ---------- */
+.flight-card {
+  background: #fff;
+  border-radius: 10px;
+  padding: 10px 14px;
+  margin-bottom: 8px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+  transition: all 0.2s ease;
+}
+.flight-card:hover {
+  box-shadow: 0 2px 6px rgba(0,0,0,0.12);
+  transform: translateY(-1px);
+}
+
+/* Flight route section */
+.flight-route {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+.flight-route .time {
+  font-size: 13px;
+  font-weight: 600;
+  color: #0B2C5E;
+}
+.flight-route .duration {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 11px;
+  color: #555;
+}
+.flight-route .plane-line {
+  position: relative;
+  height: 1px;
+  width: 60px;
+  background: #ccc;
+}
+.flight-route .plane-line::before {
+  content: "✈️";
+  position: absolute;
+  top: -9px;
+  left: 50%;
+  transform: translateX(-50%);
+  font-size: 12px;
+}
+
+/* Flight bottom section */
+.flight-bottom {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 4px;
+}
+.flight-info {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  color: #444;
+}
+.flight-info img {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  object-fit: contain;
+}
+.flight-price {
+  font-weight: 700;
+  font-size: 13px;
+  color: #1EAD64;
+}
+/* --- Flight Card Container --- */
+.agent-bubble .tab-content {
+  padding: 8px 6px; /* reduce side padding so cards can stretch */
+}
+
+/* --- Flight Card --- */
+.compact-flight-card {
+  width: 98%;              /* make it wider */
+  margin: 6px auto;        /* center it */
+  background: #ffffff;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px 14px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+  transition: all 0.2s ease;
+}
+
+.compact-flight-card:hover {
+  border-color: #0B2C5E;
+  box-shadow: 0 4px 10px rgba(11, 44, 94, 0.1);
+  transform: translateY(-1px);
+}
+
+
+/* ---------- INPUT AREA ---------- */
+/* === CHAT INPUT BAR CLEAN + ALIGNED === */
+.input-wrapper {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: #fff;
+  padding: 10px 14px;
+  border-top: 1px solid #e5e7eb;
+  box-shadow: 0 -2px 8px rgba(0, 0, 0, 0.05);
+}
+
+/* Input Field */
+.compact-input {
+  flex: 1;
+  height: 44px;
+  padding: 0 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 22px;
+  font-size: 13px;
+  color: #1e293b;
+  background: #f8fafc;
+  outline: none;
+  transition: all 0.2s ease;
+}
+
+.compact-input:focus {
+  background: #fff;
+  box-shadow: 0 0 0 2px rgba(11, 44, 94, 0.15);
+}
+
+/* Send Button */
+.send-button {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border: none;
+  border-radius: 50%;
+  background: linear-gradient(135deg, #0B2C5E 0%, #B2924C 100%) !important;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(11, 44, 94, 0.25);
+  transition: all 0.25s ease;
+}
+
+.send-button:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 14px rgba(11, 44, 94, 0.3);
+}
+
+/* Send Button Icon */
+.send-button svg {
+  stroke: #ffffff !important;
+  stroke-width: 2;
+  width: 18px;
+  height: 18px;
+}
+
+
+
+
+/* ---------- ANIMATIONS & SCROLL ---------- */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+.compact-messages::-webkit-scrollbar {
+  width: 5px;
+}
+.compact-messages::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 10px;
+}
+.compact-messages::-webkit-scrollbar-thumb:hover {
+  background: #94a3b8;
+}
+
+/* ✅ Fix: Force proper wrapping for user and agent bubbles */
+.user-bubble,
+.agent-bubble,
+.compact-bubble {
+  display: inline-block !important;
+  max-width: 75%;
+  white-space: normal !important;     /* enable line wrapping */
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  line-height: 1.5;
+  text-align: left;
+}
+
+/* ✅ Fix: Allow flex containers to wrap their children */
+.compact-messages > .flex {
+  align-items: flex-start !important;
+  flex-wrap: wrap !important;
+  width: 100%;
+}
+
+/* ✅ Optional: Make long links or URLs wrap gracefully */
+.compact-bubble a,
+.compact-bubble span {
+  white-space: normal !important;
+  word-break: break-word !important;
+}
+/* ✅ FINAL FIX — multiline user input wrapping (confirmed working) */
+
+/* Allow message containers to wrap properly */
+.flex.justify-end, 
+.flex.justify-start {
+  display: flex !important;
+  flex-wrap: wrap !important;
+  align-items: flex-start !important;
+  max-width: 100%;
+}
+
+/* Fix bubble text wrapping */
+.user-bubble, 
+.agent-bubble {
+  display: inline-block !important;
+  white-space: normal !important;
+  word-break: break-word !important;
+  overflow-wrap: break-word !important;
+  max-width: 85%;
+  line-height: 1.5;
+  text-align: left;
+}
+
+/* Ensure input bar stays unaffected */
+.input-wrapper {
+  flex-wrap: nowrap !important;
+}
+
+/* ✅ Multi-line Auto-Wrapping Input */
+.compact-input {
+  flex: 1;
+  height: 44px;
+  min-height: 44px;
+  max-height: 120px;
+  padding: 10px 16px;
+  border: 1px solid #e2e8f0;
+  border-radius: 22px;
+  font-size: 13px;
+  color: #1e293b;
+  background: #f8fafc;
+  outline: none;
+  resize: none;
+  overflow-y: hidden;              /* ✅ no scrollbar flicker */
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.5;
+  transition: height 0.15s ease;
+}
+
+.input-wrapper {
+  align-items: flex-end;
+  padding: 10px 14px;
+}
+
+
+
+
+</style>
+
+</head>
+
+<body>
+    <!-- Decorative floating elements -->
+    <div class="floating-element floating-1"></div>
+    <div class="floating-element floating-2"></div>
+
+
+
+    <!-- Error Boundary Container -->
+    <div id="error-boundary" class="hidden"></div>
+
+    <!-- Main Chat Container -->
+    <div class="compact-container">
+        
+        <!-- Header -->
+<header class="compact-header"
+        style="background: linear-gradient(90deg, #0B2C5E 0%, #B2924C 100%);
+               color: white;
+               padding: 0.75rem 1.25rem;
+               border-top-left-radius: 0.75rem;
+               border-top-right-radius: 0.75rem;
+               box-shadow: 0 2px 6px rgba(0,0,0,0.15);">
+    <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <div class="bg-white p-1.5 rounded-xl shadow-md flex items-center justify-center header-logo border border-yellow-500/40">
+                <img src="/static/Logo.jpg" alt="Logo" class="w-6 h-6 object-contain">
+            </div>
+            <div>
+                <h1 class="font-semibold text-lg tracking-wide">AI Travel Agent</h1>
+                <p class="text-xs opacity-90">Your intelligent travel companion</p>
+            </div>
+        </div>
+    </div>
+</header>
+
+
+        <!-- Chat History Area -->
+        <main id="chat-history" class="compact-messages">
+            <!-- Welcome Message -->
+            <div class="flex justify-start">
+                <div class="agent-bubble compact-bubble">
+                    <div class="flex items-center space-x-3 mb-3">
+<div class="w-8 h-8 rounded-full overflow-hidden shadow-sm flex items-center justify-center bg-white">
+    <img src="/static/person.png" alt="AI Travel Agent Logo" class="object-contain w-7 h-7">
+</div>
+
+                        <div>
+                            <h3 class="font-bold text-gray-900">Welcome to AI Travel Agent!</h3>
+                            <p class="text-sm text-gray-600">I can help you find flights, Hotels, and more</p>
+                        </div>
+                    </div>
+                    
+                </div>
+            </div>
+
+<!-- Flight Tabs -->
+<div id="flight-tabs" class="hidden bg-white rounded-xl shadow-sm mt-3">
+  <div class="flex border-b border-gray-200 text-sm font-medium">
+    <button class="tab-btn active" data-tab="tab1">One-way</button>
+    <button class="tab-btn" data-tab="tab2">Round-trip</button>
+    <button class="tab-btn" data-tab="tab3">Multi-city</button>
+  </div>
+
+  <div id="tab1" class="tab-content block p-4"></div>
+  <div id="tab2" class="tab-content hidden p-4"></div>
+  <div id="tab3" class="tab-content hidden p-4"></div>
+</div>
+
+
+
+
+
+        </main>
+
+        <!-- Input Area -->
+        <div class="compact-input-area">
+            <!-- Selected Flights Summary -->
+            <div id="selected-flight-summary" class="multi-city-header hidden">
+                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                    <div class="flex items-center space-x-3">
+                        <div class="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center shadow-sm">
+                            <span class="text-blue-600 text-xs">✈️</span>
+                        </div>
+                        <div>
+                            <h4 class="font-semibold text-blue-900 text-sm" id="selected-flight-text">No flights selected</h4>
+                            <p class="text-xs text-blue-700">Select flights to compare or book</p>
+                        </div>
+                    </div>
+                    <div class="flex items-center space-x-2">
+                        <button id="confirm-selection-btn" class="select-flight text-xs hidden">
+                            Confirm Selection
+                        </button>
+                        <button id="clear-selected-flights" class="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors">
+                            Clear ✖
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Multi-copy Button -->
+            <div id="multi-copy-container" class="hidden justify-center mt-3">
+                <button id="multi-copy-btn" class="quick-action bg-gray-600 text-white">
+                    Copy 0 Selected Flights
+                </button>
+            </div>
+
+            <!-- Input Container -->
+<div class="input-wrapper">
+    <textarea
+        id="user-input"
+        class="compact-input"
+        placeholder="Ask about flights, hotels, weather..."
+        aria-label="Enter your travel request"
+        rows="1"
+    ></textarea>
+
+    <button 
+        id="send-btn"
+        class="send-button transition-all duration-200"
+        aria-label="Send message"
+    >
+        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <line x1="22" y1="2" x2="11" y2="13"></line>
+            <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
+        </svg>
+    </button>
+</div>
+
+
+<!-- ✅ Inline Loader (keep it here) -->
+<div id="loading-indicator" style="display:none;">
+  <div class="flex items-center justify-center space-x-2 text-gray-600 mt-2">
+    <div class="loading-spinner rounded-full h-4 w-4 border-2 border-blue-200 border-t-blue-600"></div>
+    <span class="font-medium text-sm">Processing your request...</span>
+  </div>
+</div>
+
+
+        </div>
+    </div>
+
+    <!-- Firebase & Application Script -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
+        import { getAuth, signInAnonymously, signInWithCustomToken, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-auth.js";
+        import { getFirestore, doc, addDoc, onSnapshot, collection, query, orderBy, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
+
+        // Configuration
+        const CONFIG = {
+            BACKEND_URL: 'http://localhost:5000/api/search',
+            HISTORY_COLLECTION: 'chat_messages',
+            MAX_RETRIES: 3,
+            RETRY_DELAY: 1000
+        };
+
+        // Elements
+        const elements = {
+            chatHistory: document.getElementById('chat-history'),
+            userInput: document.getElementById('user-input'),
+            sendBtn: document.getElementById('send-btn'),
+            loadingIndicator: document.getElementById('loading-indicator'),
+            loadingOverlay: document.getElementById('loading-overlay'),
+            multiCopyContainer: document.getElementById('multi-copy-container'),
+            multiCopyBtn: document.getElementById('multi-copy-btn'),
+            selectedSummary: document.getElementById('selected-flight-summary'),
+            selectedText: document.getElementById('selected-flight-text'),
+            confirmBtn: document.getElementById('confirm-selection-btn'),
+            clearBtn: document.getElementById('clear-selected-flights'),
+            errorBoundary: document.getElementById('error-boundary')
+        };
+
+        // Global state
+        window.appState = {
+            selectedFlights: [],
+            currentSessionId: 'session_' + Math.random().toString(36).substring(2, 15),
+            retryCount: 0
+        };
+
+        // Firebase state
+        let db = null;
+        let auth = null;
+        let userId = 'anon_user';
+
+        // Utility functions
+function showLoading(show = true) {
+  if (show) {
+    elements.loadingIndicator.style.display = 'block';
+    elements.sendBtn.disabled = true;
+  } else {
+    elements.loadingIndicator.style.display = 'none';
+    elements.sendBtn.disabled = false;
+  }
+}
+
+
+        function showError(message) {
+            const errorHtml = `
+                <div class="error-banner fade-in">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center space-x-3">
+                            <span class="text-red-500">⚠️</span>
+                            <div>
+                                <p class="font-semibold">Something went wrong</p>
+                                <p class="text-sm">${message}</p>
+                            </div>
+                        </div>
+                        <button onclick="this.parentElement.parentElement.remove()" class="text-red-500 hover:text-red-700">
+                            ✖
+                        </button>
+                    </div>
+                </div>
+            `;
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = errorHtml;
+            elements.chatHistory.appendChild(tempDiv.firstElementChild);
+            elements.chatHistory.scrollTop = elements.chatHistory.scrollHeight;
+        }
+
+        function showSuccess(message) {
+            const successHtml = `
+                <div class="success-banner fade-in">
+                    <div class="flex items-center space-x-3">
+                        <span class="text-green-500">✅</span>
+                        <p class="font-semibold">${message}</p>
+                    </div>
+                </div>
+            `;
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = successHtml;
+            elements.chatHistory.appendChild(tempDiv.firstElementChild);
+            elements.chatHistory.scrollTop = elements.chatHistory.scrollHeight;
+        }
+
+        // Initialize Firebase
+        async function initFirebaseAndAuth() {
+            try {
+                const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : null;
+                
+                if (!firebaseConfig) {
+                    console.warn("Firebase configuration missing - chat history disabled");
+                    return;
+                }
+
+                const app = initializeApp(firebaseConfig);
+                db = getFirestore(app);
+                auth = getAuth(app);
+                setLogLevel('error');
+
+                if (window.__initial_auth_token) {
+                    await signInWithCustomToken(auth, window.__initial_auth_token);
+                } else {
+                    await signInAnonymously(auth);
+                }
+
+                onAuthStateChanged(auth, (user) => {
+                    if (user) {
+                        userId = user.uid;
+                        console.log(`User authenticated: ${userId}`);
+                    }
+                });
+
+            } catch (error) {
+                console.error("Firebase Initialization Failed:", error);
+                showError("Chat history is temporarily unavailable");
+            }
+        }
+
+        // Message handling
+        async function saveMessage(text, role, type = 'text', data = null) {
+            displayMessage(text, role, type, data);
+
+            if (!db || !auth.currentUser) {
+                console.warn("Firestore not available - message not saved");
+                return;
+            }
+
+            try {
+                const messageData = {
+                    text: text,
+                    role: role,
+                    type: type,
+                    data: data,
+                    timestamp: new Date(),
+                    userId: userId,
+                    appId: window.__app_id || 'travel-agent',
+                    sessionId: window.appState.currentSessionId
+                };
+
+                const collectionPath = `artifacts/${window.__app_id}/users/${userId}/${CONFIG.HISTORY_COLLECTION}`;
+                await addDoc(collection(db, collectionPath), messageData);
+                
+            } catch (error) {
+                console.error("Error saving message:", error);
+            }
+        }
+
+function displayMessage(text, role, type = "text", data = null) {
+            const isUser = role === "user";
+            const alignment = isUser ? "justify-end" : "justify-start";
+            const bubbleClass = isUser ? "user-bubble compact-bubble" : "agent-bubble compact-bubble";
+
+            // Handle flight recommendations
+            if (type === "flight_recommendation" && data) {
+                renderFlightRecommendation(data, text);
+                return;
+            }
+
+            // Regular text message
+            const messageDiv = document.createElement("div");
+            messageDiv.className = `flex ${alignment}`;
+
+            let contentHTML = text
+                .replace(/\n/g, "<br>")
+                .replace(/\*\*(.*?)\*\*/g, "<strong>$1</strong>")
+                .replace(/\*(.*?)\*/g, "<em>$1</em>");
+
+            messageDiv.innerHTML = `
+                <div class="${bubbleClass}">
+                    ${contentHTML}
+                </div>
+            `;
+
+            elements.chatHistory.appendChild(messageDiv);
+            elements.chatHistory.scrollTop = elements.chatHistory.scrollHeight;
+        }
+
+
+        // Flight rendering functions
+// Flight rendering functions
+function renderFlightRecommendation(flightData, headerText) {
+  const chatHistory = document.getElementById("chat-history");
+
+  // Create agent bubble container (no duplicates)
+  const bubble = document.createElement("div");
+  bubble.className = "agent-bubble compact-bubble";
+
+  // Clone the hidden flight tabs template
+  const tabsTemplate = document.getElementById("flight-tabs");
+  const tabsClone = tabsTemplate.cloneNode(true);
+// ✅ Fix possible reversed tab button layout
+const tabButtonsContainer = tabsClone.querySelector(".tab-buttons, .flex");
+if (tabButtonsContainer) {
+  tabButtonsContainer.classList.remove("flex-row-reverse", "justify-end", "space-x-reverse");
+  tabButtonsContainer.classList.add("flex-row", "justify-start");
+}
+
+
+  tabsClone.id = ""; // remove duplicate ID
+  tabsClone.classList.remove("hidden");
+
+  // Add header text above the tabs inside the same bubble
+const header = document.createElement("div");
+header.className =
+  "flex items-center text-[13px] font-medium text-white mb-2 rounded-md px-3 py-1.5 shadow-sm";
+header.style.background = "linear-gradient(90deg, #0B2C5E 0%, #B2924C 100%)";
+header.innerHTML = `
+  <span class="mr-2 text-white text-sm">✈️</span>
+  <span>${headerText}</span>
+`;
+
+
+
+
+  bubble.appendChild(header);
+  bubble.appendChild(tabsClone);
+
+  // ✅ Assemble full message structure (AI avatar + bubble)
+  const messageWrapper = document.createElement("div");
+  messageWrapper.className = "flex justify-start mb-4";
+
+  const avatar = document.createElement("div");
+  avatar.className =
+    "w-8 h-8 rounded-full overflow-hidden shadow-sm flex items-center justify-center bg-white mr-3";
+  avatar.innerHTML = `<img src="/static/person.png" alt="AI Travel Agent" class="object-contain w-7 h-7">`;
+
+  messageWrapper.appendChild(avatar);
+  messageWrapper.appendChild(bubble);
+  chatHistory.appendChild(messageWrapper);
+  chatHistory.scrollTop = chatHistory.scrollHeight;
+
+  // Initialize tabs for this response
+  initLocalTabs(tabsClone);
+
+  // === Determine trip type ===
+  const tripType =
+    flightData.tripType ||
+    (flightData.inbound && flightData.inbound.length
+      ? "roundTrip"
+      : flightData.flights?.length > 1
+      ? "multiCity"
+      : "oneWay");
+
+  // === Hide irrelevant tabs ===
+  const tabButtons = tabsClone.querySelectorAll(".tab-btn");
+  const tabContents = tabsClone.querySelectorAll(".tab-content");
+
+  tabButtons.forEach(btn => (btn.style.display = "block"));
+  tabContents.forEach(tab => (tab.style.display = "block"));
+
+  if (tripType === "oneWay") {
+    tabsClone.querySelector('[data-tab="tab2"]').style.display = "none";
+    tabsClone.querySelector('[data-tab="tab3"]').style.display = "none";
+    tabsClone.querySelector("#tab2").style.display = "none";
+    tabsClone.querySelector("#tab3").style.display = "none";
+  } else if (tripType === "roundTrip") {
+    tabsClone.querySelector('[data-tab="tab1"]').style.display = "none";
+    tabsClone.querySelector('[data-tab="tab3"]').style.display = "none";
+    tabsClone.querySelector("#tab1").style.display = "none";
+    tabsClone.querySelector("#tab3").style.display = "none";
+  } else if (tripType === "multiCity") {
+    tabsClone.querySelector('[data-tab="tab1"]').style.display = "none";
+    tabsClone.querySelector('[data-tab="tab2"]').style.display = "none";
+    tabsClone.querySelector("#tab1").style.display = "none";
+    tabsClone.querySelector("#tab2").style.display = "none";
+  }
+
+  // === Render One-way flights ===
+  if (tripType === "oneWay") {
+  const oneWayTab = tabsClone.querySelector("#tab1");
+  const offers = flightData.offers || flightData.flights?.[0]?.offers || [];
+
+  const offersHTML = offers
+  .map(
+    offer => `
+    <div class="flight-card border rounded-lg p-2 mb-2 bg-white shadow-sm hover:shadow transition text-[13px] w-[98%] mx-auto">
+      <div class="flex items-center justify-between">
+        <div class="flex items-center space-x-2">
+          <img 
+            src="${offer.logoUrl || `https://content.airhex.com/content/logos/airlines_${offer.carrierCode}_100_100_s.png`}" 
+            alt="${offer.carrierName || 'Airline'} logo"
+            class="w-6 h-6 object-contain rounded bg-gray-50"
+            onerror="this.style.display='none'">
+<div class="text-gray-800">
+  <div class="font-semibold text-[13px] leading-tight">
+    ${offer.carrierName || ''}
+  </div>
+  <div class="text-[11px] text-gray-500 tracking-tight mt-[1px]">
+    ${offer.flightNumber || ''}
+  </div>
+</div>
+
+        </div>
+        <div class="text-right text-green-600 font-bold text-[14px]">
+          ${offer.price?.total || ''} ${offer.price?.currency || ''}
+        </div>
+      </div>
+
+      <div class="flex justify-between mt-2 text-gray-700 text-[12px]">
+        <div>
+          <p><span class="font-medium">${offer.departureTime || ''}</span> Depart</p>
+          <p class="text-gray-500 text-[11px]">${offer.departureDate || ''}</p>
+          <p class="text-gray-500">${offer.origin || ''}</p>
+        </div>
+        <div class="text-center">
+          <p>✈️ ${offer.flightDuration || ''}</p>
+          <p class="${offer.stops > 0 ? 'text-orange-600' : 'text-green-600'}">
+            ${offer.stops > 0 ? `${offer.stops} stop` : 'Non-stop'}
+          </p>
+        </div>
+        <div class="text-right">
+          <p><span class="font-medium">${offer.arrivalTime || ''}</span> Arrive</p>
+          <p class="text-gray-500 text-[11px]">${offer.arrivalDate || ''}</p>
+          <p class="text-gray-500">${offer.destination || ''}</p>
+        </div>
+      </div>
+
+      <div class="mt-1 pt-1 text-[11px] text-gray-500 border-t flex justify-between">
+        <span>${offer.baggage || '—'} • ${offer.cabin || 'Economy'}</span>
+        <span>${offer.aircraft || ''}</span>
+      </div>
+    </div>
+  `
+  )
+  .join("");
+
+
+  oneWayTab.innerHTML = offersHTML || "<p class='text-gray-500 text-sm'>No one-way flights found.</p>";
+  return;
+}
+
+
+ 
+
+/// === Multi-City or Round-Trip flights ===
+if (tripType === "multiCity" || tripType === "roundTrip") {
+  // Find the tabs button row and content wrapper
+  const tabButtonsContainer = tabsClone.querySelector(".flex");
+  const contentWrapper = tabsClone; // everything lives inside this clone
+
+  // Clear default tabs
+  tabButtonsContainer.innerHTML = "";
+  ["#tab1", "#tab2", "#tab3"].forEach(sel => {
+    const el = tabsClone.querySelector(sel);
+    if (el) el.remove(); // remove old static tabs safely
+  });
+
+  // Build new tabs for each segment
+  let segments = flightData.flights || [];
+
+// ✅ Ensure outbound (original route) appears first
+if (segments.length === 2) {
+  const [seg1, seg2] = segments;
+  const isReversed =
+    seg1.origin &&
+    seg2.destination &&
+    seg1.origin === seg2.destination &&
+    seg1.destination === seg2.origin;
+
+  if (isReversed) {
+    console.warn("🧭 Fixing reversed flight order in UI");
+    segments = [seg2, seg1];
+  }
+}
+// 🔧 Sort segments by departure date to ensure natural order
+segments = (segments || []).slice().sort((a, b) => {
+  const da = new Date(a.departureDate || 0);
+  const db = new Date(b.departureDate || 0);
+  return da - db;
+});
+
+// ✅ Preserve backend order (outbound first, return second)
+segments.forEach((segment, index) => {
+  const segNum = index + 1;
+  const origin = segment.origin || segment.offers?.[0]?.origin || "N/A";
+  const destination = segment.destination || segment.offers?.[0]?.destination || "N/A";
+  const tabId = `segment-tab-${segNum}`;
+
+  // Create tab button
+  const button = document.createElement("button");
+  button.className =
+    "tab-btn flex-1 py-2 text-center font-medium text-gray-600 hover:text-blue-600 border-b-2 border-transparent focus:outline-none";
+  button.dataset.tab = tabId;
+  button.textContent = `${origin} → ${destination}`;
+
+  // 🟢 Append instead of prepend to maintain order
+  tabButtonsContainer.appendChild(button);
+
+  // Create tab content
+  const tabDiv = document.createElement("div");
+  tabDiv.id = tabId;
+  tabDiv.className = "tab-content p-4 hidden";
+
+  const offers = segment.offers || [];
+  const offersHTML = offers
+    .map(offer => `
+      <div class="flight-card border rounded-lg p-2 mb-2 bg-white shadow-sm hover:shadow transition text-[13px] w-[98%] mx-auto">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <img 
+              src="${offer.logoUrl || `https://content.airhex.com/content/logos/airlines_${offer.carrierCode}_100_100_s.png`}" 
+              alt="${offer.carrierName || 'Airline'} logo"
+              class="w-6 h-6 object-contain rounded bg-gray-50"
+              onerror="this.style.display='none'">
+            <div class="text-gray-800">
+              <div class="font-semibold text-[13px] leading-tight">${offer.carrierName || ''}</div>
+              <div class="text-[11px] text-gray-500 tracking-tight mt-[1px]">${offer.flightNumber || ''}</div>
+            </div>
+          </div>
+          <div class="text-right text-green-600 font-bold text-[14px]">
+            ${offer.price?.total || ''} ${offer.price?.currency || ''}
+          </div>
+        </div>
+
+        <div class="flex justify-between mt-2 text-gray-700 text-[12px]">
+          <div>
+            <p><span class="font-medium">${offer.departureTime || ''}</span> Depart</p>
+            <p class="text-gray-500 text-[11px]">${offer.departureDate || ''}</p>
+            <p class="text-gray-500">${offer.origin || ''}</p>
+          </div>
+          <div class="text-center">
+            <p>✈️ ${offer.flightDuration || ''}</p>
+            <p class="${offer.stops > 0 ? 'text-orange-600' : 'text-green-600'}">
+              ${offer.stops > 0 ? `${offer.stops} stop` : 'Non-stop'}
+            </p>
+          </div>
+          <div class="text-right">
+            <p><span class="font-medium">${offer.arrivalTime || ''}</span> Arrive</p>
+            <p class="text-gray-500 text-[11px]">${offer.arrivalDate || ''}</p>
+            <p class="text-gray-500">${offer.destination || ''}</p>
+          </div>
+        </div>
+
+        <div class="mt-1 pt-1 text-[11px] text-gray-500 border-t flex justify-between">
+          <span>${offer.baggage || '—'} • ${offer.cabin || 'Economy'}</span>
+          <span>${offer.aircraft || ''}</span>
+        </div>
+      </div>
+    `)
+    .join('');
+
+  tabDiv.innerHTML = offersHTML || `<p class='text-gray-500 text-sm'>No flights found for ${origin} → ${destination}.</p>`;
+
+  // 🟢 Append content after creating button
+  contentWrapper.appendChild(tabDiv);
+});
+
+
+  // Initialize new tabs safely
+  if (typeof initLocalTabs === "function") {
+    initLocalTabs(tabsClone);
+  }
+
+  // Activate first tab by default
+   const firstTab = tabsClone.querySelector(".tab-btn");
+  if (firstTab) firstTab.click();
+} 
+} // closes renderFlightRecommendation
+
+
+
+// Extract dates that the backend actually used
+function getBackendDates(flightData) {
+
+            const backendDates = {
+                segment1: null,
+                segment2: null
+            };
+
+            if (flightData.flights && Array.isArray(flightData.flights)) {
+                flightData.flights.forEach((segment, index) => {
+                    const flight = segment.offers?.[0];
+                    if (flight && flight.departureDate) {
+                        backendDates[`segment${index + 1}`] = formatDateForDisplay(flight.departureDate);
+                    }
+                });
+            }
+
+            return backendDates;
+        }
+
+        // Check if backend used different dates than requested
+        function checkBackendDateMismatch(requestedDates, backendDates) {
+            if (!requestedDates.segment1 || !backendDates.segment1) return false;
+            
+            const requestedOutbound = requestedDates.segment1.toUpperCase();
+            const requestedReturn = requestedDates.segment2?.toUpperCase();
+            const backendOutbound = backendDates.segment1?.toUpperCase();
+            const backendReturn = backendDates.segment2?.toUpperCase();
+            
+            return (requestedOutbound !== backendOutbound) || (requestedReturn !== backendReturn);
+        }
+
+        // Enhanced flight section with better date comparison
+        function renderFlightSection(flights, title, color, requestedDate, segmentNumber) {
+            if (!flights || flights.length === 0) {
+                return `
+                    <div class="flight-section">
+                        <div class="flight-header" style="color: ${color};">${title}</div>
+                        <div class="compact-flight-card">
+                            <div class="text-center text-gray-500 py-6">
+                                <i class="fas fa-plane-slash text-2xl mb-2 opacity-50"></i>
+                                <div>No flights available for this segment</div>
+                            </div>
+                        </div>
+                    </div>
+                `;
+            }
+
+            let html = `
+                <div class="flight-section">
+                    <div class="flight-header" style="color: ${color};">
+                        ${title}
+                        ${requestedDate ? `
+                            <span class="text-xs font-normal text-gray-500 ml-2">
+                                (Requested: ${requestedDate})
+                            </span>
+                        ` : ''}
+                    </div>
+            `;
+
+            flights.forEach((flight, index) => {
+                html += renderFlightCard(flight, requestedDate, index, segmentNumber);
+            });
+
+            html += `</div>`;
+            return html;
+        }
+
+        // Enhanced flight card with detailed date information
+        function renderFlightCard(flight, requestedDate, index, segmentNumber) {
+            const departureDate = formatDateForDisplay(flight.departureDate);
+            const arrivalDate = formatDateForDisplay(flight.arrivalDate);
+            const formattedRequestedDate = formatDateForDisplay(requestedDate);
+            
+            const hasDateMismatch = formattedRequestedDate && departureDate !== formattedRequestedDate;
+            const isReturnFlight = segmentNumber === 2;
+            
+            // Calculate duration if not provided
+            let duration = flight.duration;
+            if (!duration && flight.departureTime && flight.arrivalTime) {
+                duration = calculateDuration(flight.departureTime, flight.arrivalTime);
+            }
+
+            return `
+                <div class="compact-flight-card ${hasDateMismatch ? 'date-mismatch' : ''} ${isReturnFlight ? 'return-flight' : ''}">
+                    ${hasDateMismatch ? `
+                        <div class="date-mismatch-banner">
+                            <i class="fas fa-calendar-exclamation mr-1"></i>
+                            Showing: ${departureDate} (Requested: ${formattedRequestedDate})
+                        </div>
+                    ` : ''}
+                    
+                    <div class="flight-airline">
+                        <div class="airline-logo ${isReturnFlight ? 'return-logo' : ''}">
+                            ${(flight.carrierCode || 'FL').substring(0, 2)}
+                        </div>
+                        <div>
+                            <div class="airline-name">${flight.carrierName || 'Airline'}</div>
+                            <div class="flight-number">
+                                <i class="fas fa-plane mr-1"></i>
+                                ${flight.flightNumber || 'N/A'}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flight-route">
+                        <div class="route-segment">
+                            <div class="route-time">${flight.departureTime || '--:--'}</div>
+                            <div class="route-date ${hasDateMismatch ? 'text-red-600 font-bold' : ''}">
+                                <i class="fas fa-calendar-alt mr-1"></i>
+                                ${departureDate}
+                            </div>
+                            <div class="route-airport">
+                                <i class="fas fa-plane-departure mr-1 text-blue-500"></i>
+                                ${flight.origin || 'N/A'}
+                            </div>
+                        </div>
+                        
+                        <div class="route-connector">
+                            <div class="flight-duration">
+                                <i class="fas fa-clock mr-1"></i>
+                                ${duration || 'N/A'}
+                            </div>
+                            <div class="connector-line"></div>
+                            <div class="flight-stops">
+                                ${flight.stops === 0 ? 
+                                    '<i class="fas fa-arrow-right mr-1"></i> Non-stop' : 
+                                    `<i class="fas fa-map-marker-alt mr-1"></i> ${flight.stops} stop${flight.stops > 1 ? 's' : ''}`
+                                }
+                            </div>
+                        </div>
+                        
+                        <div class="route-segment">
+                            <div class="route-time">${flight.arrivalTime || '--:--'}</div>
+                            <div class="route-date">
+                                <i class="fas fa-calendar-alt mr-1"></i>
+                                ${arrivalDate}
+                            </div>
+                            <div class="route-airport">
+                                <i class="fas fa-plane-arrival mr-1 text-green-500"></i>
+                                ${flight.destination || 'N/A'}
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="flight-price">
+                        <div class="price-amount">
+                            <i class="fas fa-tag mr-1"></i>
+                            ${flight.price?.total || 'N/A'} ${flight.price?.currency || 'AED'}
+                        </div>
+                        <div class="price-label">Total per passenger • Includes taxes</div>
+                    </div>
+
+                    <div class="flight-meta">
+                        <div class="flight-class">
+                            <i class="fas fa-chair mr-1"></i>
+                            ${flight.cabin || 'Economy'}
+                        </div>
+                        <button class="select-flight">
+                            <i class="fas fa-check mr-1"></i>
+                            Select Flight
+                        </button>
+                    </div>
+                </div>
+            `;
+        }
+
+        // Helper function to calculate duration
+        function calculateDuration(departureTime, arrivalTime) {
+            if (!departureTime || !arrivalTime) return 'N/A';
+            
+            try {
+                const [depHours, depMinutes] = departureTime.split(':').map(Number);
+                const [arrHours, arrMinutes] = arrivalTime.split(':').map(Number);
+                
+                let totalMinutes = (arrHours * 60 + arrMinutes) - (depHours * 60 + depMinutes);
+                
+                // Handle next day arrival
+                if (totalMinutes < 0) {
+                    totalMinutes += 24 * 60;
+                }
+                
+                const hours = Math.floor(totalMinutes / 60);
+                const minutes = totalMinutes % 60;
+                
+                return `${hours}h ${minutes}m`;
+            } catch (error) {
+                return 'N/A';
+            }
+        }
+
+        // Enhanced date extraction for round trip queries
+        function extractRequestedDates(query) {
+            const dates = {};
+            
+            // Match round trip patterns like "AUH-BOM-AUH 12 NOV,19 NOV"
+            const roundTripPattern = /(\w{3})-(\w{3})-(\w{3})\s+([^,]+),\s*([^,]+)/i;
+            const roundTripMatch = query.match(roundTripPattern);
+            
+            if (roundTripMatch) {
+                dates.segment1 = roundTripMatch[4].trim().toUpperCase();
+                dates.segment2 = roundTripMatch[5].trim().toUpperCase();
+                return dates;
+            }
+            
+            // Match multi-city patterns
+            const multiCityPattern = /(\d{1,2}\s+(?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)\s*\d{0,4})/gi;
+            const dateMatches = query.match(multiCityPattern);
+            
+            if (dateMatches) {
+                dateMatches.forEach((date, index) => {
+                    dates[`segment${index + 1}`] = date.toUpperCase().replace(/\s+/g, ' ');
+                });
+            }
+            
+            return dates;
+        }
+
+        // Helper function to format dates consistently
+        function formatDateForDisplay(dateStr) {
+            if (!dateStr) return 'N/A';
+            
+            // Handle different date formats
+            if (dateStr.match(/^\d{4}-\d{2}-\d{2}$/)) {
+                const date = new Date(dateStr);
+                const day = date.getDate().toString().padStart(2, '0');
+                const month = date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase();
+                const year = date.getFullYear();
+                return `${day} ${month} ${year}`;
+            }
+            
+            // Already formatted date
+            return dateStr.toUpperCase();
+        }
+
+        function attachFlightCardListeners() {
+            document.querySelectorAll('.select-flight').forEach(button => {
+                button.addEventListener('click', function() {
+                    const flightCard = this.closest('.compact-flight-card');
+                    const airline = flightCard.querySelector('.airline-name').textContent;
+                    const flightNumber = flightCard.querySelector('.flight-number').textContent;
+                    const price = flightCard.querySelector('.price-amount').textContent;
+                    
+                    // Visual feedback
+                    this.textContent = '✓ Selected';
+                    this.classList.add('selected');
+                    flightCard.classList.add('selected');
+                    
+                    // Add to selection
+                    const selectedFlight = {
+                        airline,
+                        flightNumber,
+                        price,
+                        id: Date.now()
+                    };
+                    window.appState.selectedFlights.push(selectedFlight);
+                    updateSelectionUI();
+                    
+                    showSuccess(`Selected ${airline} ${flightNumber}`);
+                });
+            });
+        }
+
+        function updateSelectionUI() {
+            const count = window.appState.selectedFlights.length;
+            
+            if (count > 0) {
+                elements.selectedSummary.classList.remove('hidden');
+                elements.selectedText.textContent = `✈️ ${count} Flight${count > 1 ? 's' : ''} Selected`;
+                elements.confirmBtn.classList.remove('hidden');
+                elements.multiCopyContainer.classList.remove('hidden');
+                elements.multiCopyBtn.textContent = `Copy ${count} Selected Flight${count > 1 ? 's' : ''}`;
+            } else {
+                elements.selectedSummary.classList.add('hidden');
+                elements.confirmBtn.classList.add('hidden');
+                elements.multiCopyContainer.classList.add('hidden');
+            }
+        }
+
+        // API Communication
+        async function callGenerativeAgent(query) {
+            let lastError = null;
+            
+            for (let attempt = 1; attempt <= CONFIG.MAX_RETRIES; attempt++) {
+                try {
+                    const response = await fetch(CONFIG.BACKEND_URL, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                            'X-Session-Id': window.appState.currentSessionId
+                        },
+                        body: JSON.stringify({ query: query })
+                    });
+
+                    if (response.ok) {
+                        window.appState.retryCount = 0;
+                        return await response.json();
+                    } else {
+                        const errorText = await response.text();
+                        throw new Error(`HTTP ${response.status}: ${errorText}`);
+                    }
+                } catch (error) {
+                    lastError = error;
+                    console.warn(`Attempt ${attempt} failed:`, error);
+                    
+                    if (attempt < CONFIG.MAX_RETRIES) {
+                        await new Promise(resolve => setTimeout(resolve, CONFIG.RETRY_DELAY * attempt));
+                    }
+                }
+            }
+            
+            throw lastError;
+        }
+
+        // Event Handlers
+async function handleUserInput() {
+  const query = elements.userInput.value.trim();
+  if (!query) return;
+
+  // Reset input + disable send
+  elements.userInput.value = '';
+  elements.sendBtn.disabled = true;
+  showLoading(true);
+
+  try {
+    // Clear previous selections
+    window.appState.selectedFlights = [];
+    updateSelectionUI();
+
+    // 1️⃣ Display user's message in chat
+    await saveMessage(query, 'user');
+
+    // 2️⃣ Show temporary “thinking…” message depending on query type
+    let tempText = "Processing your request...";
+    if (/\b(flight|fly|air|return|trip|ticket|airport|departure|arrival)\b/i.test(query)) {
+      tempText = "Searching for the best flights...";
+    } else if (/\b(weather|temperature|forecast|climate)\b/i.test(query)) {
+      tempText = "Checking the latest weather information...";
+    } else if (/\b(hotel|resort|stay|accommodation|room)\b/i.test(query)) {
+      tempText = "Finding the best hotel options...";
+    } else if (/\b(activity|tour|things? to do|sightseeing|attraction)\b/i.test(query)) {
+      tempText = "Looking for fun activities...";
+    } else if (/\b(time|timezone|local time|clock)\b/i.test(query)) {
+      tempText = "Checking the current time...";
+    } else if (/\b(agency|company|movie|actor|person|brand|event)\b/i.test(query)) {
+      tempText = "Searching for details...";
+    } else if (/\b(hi|hello|hey|thanks|thank you)\b/i.test(query)) {
+      tempText = "Hi there!";
+    }
+
+    await saveMessage(tempText, 'agent', 'text', null);
+
+    // 3️⃣ Send query to backend (Flask API)
+    const agentResponse = await callGenerativeAgent(query);
+
+    // 4️⃣ Remove temporary bubble once we have a real response
+    const tempMsg = [...elements.chatHistory.querySelectorAll('.agent-bubble')]
+      .find(el => el.textContent.trim() === tempText);
+    if (tempMsg) tempMsg.remove();
+
+    // 5️⃣ Display backend response appropriately
+    if (agentResponse.type === 'flight_recommendation') {
+      renderFlightRecommendation(
+        agentResponse.data,
+        agentResponse.text || "Here are your flight options:"
+      );
+    } else if (agentResponse.text) {
+      await saveMessage(agentResponse.text, 'agent', agentResponse.type, agentResponse.data);
+    } else {
+      console.warn("⚠️ Backend response missing text:", agentResponse);
+      await saveMessage("I couldn’t find relevant information for that.", 'agent', 'text', null);
+    }
+
+  } catch (error) {
+    console.error('Agent communication failed:', error);
+    const errorMessage = `I encountered an issue while processing your request. Please try again. (Error: ${error.message})`;
+    await saveMessage(errorMessage, 'agent', 'text', null);
+  } finally {
+    showLoading(false);
+    elements.sendBtn.disabled = false;
+    elements.userInput.focus();
+  }
+}
+
+
+
+
+
+        // Event Listeners
+        document.querySelectorAll('.quick-action').forEach(btn => {
+            btn.addEventListener('click', function() {
+                const query = this.getAttribute('data-query') || this.textContent;
+                elements.userInput.value = query;
+                elements.userInput.focus();
+            });
+        });
+
+        elements.userInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter' && !elements.sendBtn.disabled) {
+                handleUserInput();
+            }
+        });
+
+        elements.sendBtn.addEventListener('click', handleUserInput);
+
+        elements.multiCopyBtn.addEventListener('click', () => {
+            if (window.appState.selectedFlights.length === 0) return;
+            
+            let copyText = "=== SELECTED FLIGHTS ===\n\n";
+            window.appState.selectedFlights.forEach((flight, index) => {
+                copyText += `FLIGHT ${index + 1}:\n`;
+                copyText += `• ${flight.airline} ${flight.flightNumber}\n`;
+                copyText += `• Price: ${flight.price}\n\n`;
+            });
+            
+            navigator.clipboard.writeText(copyText).then(() => {
+                const originalText = elements.multiCopyBtn.textContent;
+                elements.multiCopyBtn.textContent = '✅ Copied!';
+                elements.multiCopyBtn.style.background = '#059669';
+                
+                setTimeout(() => {
+                    elements.multiCopyBtn.textContent = originalText;
+                    elements.multiCopyBtn.style.background = '';
+                }, 2000);
+            });
+        });
+
+        elements.clearBtn.addEventListener('click', () => {
+            window.appState.selectedFlights = [];
+            document.querySelectorAll('.select-flight').forEach(btn => {
+                btn.textContent = 'Select Flight';
+                btn.classList.remove('selected');
+            });
+            document.querySelectorAll('.compact-flight-card').forEach(card => {
+                card.classList.remove('selected');
+            });
+            updateSelectionUI();
+            showSuccess('Selection cleared');
+        });
+
+        elements.confirmBtn.addEventListener('click', () => {
+            if (window.appState.selectedFlights.length === 0) return;
+            
+            const flightsList = window.appState.selectedFlights.map((f, i) => 
+                `${i + 1}. ${f.airline} ${f.flightNumber} - ${f.price}`
+            ).join('\n');
+            
+            const message = `I'd like to proceed with these flights:\n\n${flightsList}\n\nCan you help me with the booking?`;
+            elements.userInput.value = message;
+            handleUserInput();
+        });
+
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            initFirebaseAndAuth().catch(console.error);
+            elements.userInput.focus();
+            console.log('AI Travel Agent initialized successfully');
+        });
+
+        // Global handler
+        window.handleMenuSelection = async function(optionId) {
+            try {
+                const response = await fetch('http://localhost:5000/api/flow', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-Session-Id': window.appState.currentSessionId
+                    },
+                    body: JSON.stringify({ selected: optionId })
+                });
+
+                const result = await response.json();
+                await saveMessage(result.text, 'agent', result.type, result.data);
+            } catch (error) {
+                console.error('Menu selection failed:', error);
+                showError('Sorry, something went wrong. Please try again.');
+            }
+        };
+
+function initLocalTabs(tabContainer) {
+  const buttons = tabContainer.querySelectorAll('.tab-btn');
+  const contents = tabContainer.querySelectorAll('.tab-content');
+
+  buttons.forEach(btn => {
+    btn.addEventListener('click', () => {
+      // Remove active from all in this container
+      buttons.forEach(b => b.classList.remove('active'));
+      contents.forEach(c => c.classList.add('hidden'));
+
+      // Activate only selected
+      btn.classList.add('active');
+      const targetId = btn.dataset.tab;
+      const target = tabContainer.querySelector(`#${targetId}`);
+      if (target) target.classList.remove('hidden');
+    });
+  });
+}
+
+const userInput = document.getElementById("user-input");
+const sendBtn = document.getElementById("send-btn");
+
+// ✅ Auto-expand while typing
+userInput.addEventListener("input", () => {
+  userInput.style.height = "auto";
+  userInput.style.height = Math.min(userInput.scrollHeight, 120) + "px";
+});
+
+// ✅ Clean reset after sending
+function resetInput() {
+  userInput.value = "";
+  userInput.style.height = "44px";      // restore exact base height
+  userInput.blur();                     // prevent cursor artifacts
+}
+
+// ✅ Click send
+sendBtn.addEventListener("click", () => {
+  // ... your existing sendMessage() logic ...
+  setTimeout(resetInput, 50);           // small delay ensures layout flush
+});
+
+// ✅ Enter = send, Shift+Enter = newline
+userInput.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" && !e.shiftKey) {
+    e.preventDefault();
+    sendBtn.click();
+  }
+});
+
+
+
+
+
+    </script>
+</body>
+</html>
