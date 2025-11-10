@@ -1512,14 +1512,9 @@ async function handleUserInput() {
 } finally {
   showLoading(false);
   elements.sendBtn.disabled = false;
-
-  // ✅ Prevent unwanted mobile keyboard popup
-  if (!/Mobi|Android/i.test(navigator.userAgent)) {
-    elements.userInput.focus();
-  } else {
-    elements.userInput.blur();
-  }
+  elements.userInput.focus();
 }
+
 
 
 
