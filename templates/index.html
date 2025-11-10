@@ -1512,9 +1512,20 @@ async function handleUserInput() {
 } finally {
   showLoading(false);
   elements.sendBtn.disabled = false;
-  elements.userInput.focus();
+
+  // ✅ Prevent unwanted mobile keyboard popup safely
+  const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+  if (!isMobile) {
+    // Desktop: keep input ready
+    elements.userInput.focus();
+  } else {
+    // Mobile: don't blur immediately, wait a tick so send still works
+    setTimeout(() => {
+      elements.userInput.blur();
+    }, 500);
+  }
 }
-}
+
 
         // Event Listeners
         document.querySelectorAll('.quick-action').forEach(btn => {
