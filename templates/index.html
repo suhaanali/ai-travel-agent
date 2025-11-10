@@ -441,143 +441,121 @@ body {
 
 </head>
 
-<body>
-    <!-- Decorative floating elements -->
-    <div class="floating-element floating-1"></div>
-    <div class="floating-element floating-2"></div>
+<body class="bg-gray-50 min-h-screen flex justify-center items-center">
+  <!-- Decorative floating elements -->
+  <div class="floating-element floating-1"></div>
+  <div class="floating-element floating-2"></div>
 
+  <!-- Error Boundary Container -->
+  <div id="error-boundary" class="hidden"></div>
 
+  <!-- Main Chat Container -->
+  <div class="w-full max-w-md sm:rounded-xl sm:shadow-lg bg-white flex flex-col h-[100dvh] sm:h-[90vh] border border-gray-100 overflow-hidden">
 
-    <!-- Error Boundary Container -->
-    <div id="error-boundary" class="hidden"></div>
+    <!-- Header -->
+    <header class="bg-gradient-to-r from-[#0B2C5E] to-[#B2924C] text-white px-4 sm:px-6 py-3 shadow-md flex items-center space-x-3">
+      <div class="bg-white p-1.5 rounded-xl shadow-md flex items-center justify-center border border-yellow-500/40">
+        <img src="./static/Logo.jpg" alt="Logo" class="w-6 h-6 sm:w-8 sm:h-8 object-contain">
+      </div>
+      <div>
+        <h1 class="font-semibold text-base sm:text-lg tracking-wide">AI Travel Agent</h1>
+        <p class="text-[10px] sm:text-xs opacity-90">Your intelligent travel companion</p>
+      </div>
+    </header>
 
-   <!-- Main Chat Container -->
-<div class="compact-container w-full max-w-md mx-auto rounded-xl overflow-hidden shadow-lg border border-gray-100 bg-white">
-
-  <!-- Header -->
-  <header
-    class="bg-gradient-to-r from-[#0B2C5E] to-[#B2924C] text-white px-4 sm:px-6 py-3 rounded-t-xl shadow-md">
-    
-    <div class="flex items-center justify-between">
-      <!-- Left Section: Logo + Title -->
-      <div class="flex items-center space-x-3">
-        <div class="bg-white p-1.5 rounded-xl shadow-md flex items-center justify-center border border-yellow-500/40">
-          <img src="./static/Logo.jpg" alt="Logo" class="w-6 h-6 sm:w-8 sm:h-8 object-contain">
-        </div>
-        <div>
-          <h1 class="font-semibold text-base sm:text-lg tracking-wide">AI Travel Agent</h1>
-          <p class="text-[10px] sm:text-xs opacity-90">Your intelligent travel companion</p>
+    <!-- Chat History Area -->
+    <main id="chat-history" class="flex-1 overflow-y-auto px-4 py-3 space-y-3 bg-gray-50">
+      <!-- Welcome Message -->
+      <div class="flex justify-start">
+        <div class="agent-bubble bg-white shadow-sm p-3 rounded-lg max-w-[90%] sm:max-w-[80%]">
+          <div class="flex items-center space-x-3 mb-2">
+            <div class="w-8 h-8 rounded-full overflow-hidden shadow-sm flex items-center justify-center bg-white">
+              <img src="./static/person.png" alt="AI Travel Agent" class="object-contain w-7 h-7">
+            </div>
+            <div>
+              <h3 class="font-bold text-gray-900">Welcome to AI Travel Agent!</h3>
+              <p class="text-sm text-gray-600">I can help you find flights, hotels, and more.</p>
+            </div>
+          </div>
         </div>
       </div>
-    </div>
-  </header>
 
+      <!-- Flight Tabs -->
+      <div id="flight-tabs" class="hidden bg-white rounded-xl shadow-sm mt-3">
+        <div class="flex border-b border-gray-200 text-sm font-medium">
+          <button class="tab-btn active" data-tab="tab1">One-way</button>
+          <button class="tab-btn" data-tab="tab2">Round-trip</button>
+          <button class="tab-btn" data-tab="tab3">Multi-city</button>
+        </div>
+        <div id="tab1" class="tab-content block p-4"></div>
+        <div id="tab2" class="tab-content hidden p-4"></div>
+        <div id="tab3" class="tab-content hidden p-4"></div>
+      </div>
+    </main>
 
-
-        <!-- Chat History Area -->
-        <main id="chat-history" class="compact-messages">
-            <!-- Welcome Message -->
-            <div class="flex justify-start">
-                <div class="agent-bubble compact-bubble">
-                    <div class="flex items-center space-x-3 mb-3">
-<div class="w-8 h-8 rounded-full overflow-hidden shadow-sm flex items-center justify-center bg-white">
-    <img src="./static/person.png" alt="AI Travel Agent Logo" class="object-contain w-7 h-7">
-</div>
-
-                        <div>
-                            <h3 class="font-bold text-gray-900">Welcome to AI Travel Agent!</h3>
-                            <p class="text-sm text-gray-600">I can help you find flights, Hotels, and more</p>
-                        </div>
-                    </div>
-                    
-                </div>
+    <!-- Input Area -->
+    <footer class="sticky bottom-0 bg-white border-t border-gray-200 p-3 space-y-3">
+      <!-- Selected Flights Summary -->
+      <div id="selected-flight-summary" class="multi-city-header hidden">
+        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+          <div class="flex items-center space-x-3">
+            <div class="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center shadow-sm">
+              <span class="text-blue-600 text-xs">✈️</span>
             </div>
-
-<!-- Flight Tabs -->
-<div id="flight-tabs" class="hidden bg-white rounded-xl shadow-sm mt-3">
-  <div class="flex border-b border-gray-200 text-sm font-medium">
-    <button class="tab-btn active" data-tab="tab1">One-way</button>
-    <button class="tab-btn" data-tab="tab2">Round-trip</button>
-    <button class="tab-btn" data-tab="tab3">Multi-city</button>
-  </div>
-
-  <div id="tab1" class="tab-content block p-4"></div>
-  <div id="tab2" class="tab-content hidden p-4"></div>
-  <div id="tab3" class="tab-content hidden p-4"></div>
-</div>
-
-
-
-
-
-        </main>
-
-        <!-- Input Area -->
-        <div class="compact-input-area">
-            <!-- Selected Flights Summary -->
-            <div id="selected-flight-summary" class="multi-city-header hidden">
-                <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-                    <div class="flex items-center space-x-3">
-                        <div class="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center shadow-sm">
-                            <span class="text-blue-600 text-xs">✈️</span>
-                        </div>
-                        <div>
-                            <h4 class="font-semibold text-blue-900 text-sm" id="selected-flight-text">No flights selected</h4>
-                            <p class="text-xs text-blue-700">Select flights to compare or book</p>
-                        </div>
-                    </div>
-                    <div class="flex items-center space-x-2">
-                        <button id="confirm-selection-btn" class="select-flight text-xs hidden">
-                            Confirm Selection
-                        </button>
-                        <button id="clear-selected-flights" class="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors">
-                            Clear ✖
-                        </button>
-                    </div>
-                </div>
+            <div>
+              <h4 class="font-semibold text-blue-900 text-sm" id="selected-flight-text">No flights selected</h4>
+              <p class="text-xs text-blue-700">Select flights to compare or book</p>
             </div>
+          </div>
+          <div class="flex items-center space-x-2">
+            <button id="confirm-selection-btn" class="select-flight text-xs hidden">
+              Confirm Selection
+            </button>
+            <button id="clear-selected-flights" class="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors">
+              Clear ✖
+            </button>
+          </div>
+        </div>
+      </div>
 
-            <!-- Multi-copy Button -->
-            <div id="multi-copy-container" class="hidden justify-center mt-3">
-                <button id="multi-copy-btn" class="quick-action bg-gray-600 text-white">
-                    Copy 0 Selected Flights
-                </button>
-            </div>
+      <!-- Multi-copy Button -->
+      <div id="multi-copy-container" class="hidden justify-center mt-3">
+        <button id="multi-copy-btn" class="quick-action bg-gray-600 text-white">
+          Copy 0 Selected Flights
+        </button>
+      </div>
 
-            <!-- Input Container -->
-<div class="input-wrapper">
-    <textarea
-        id="user-input"
-        class="compact-input"
-        placeholder="Ask about flights, hotels, weather..."
-        aria-label="Enter your travel request"
-        rows="1"
-    ></textarea>
-
-    <button 
-        id="send-btn"
-        class="send-button transition-all duration-200"
-        aria-label="Send message"
-    >
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <!-- Input Container -->
+      <div class="flex gap-2 items-end">
+        <textarea
+          id="user-input"
+          class="flex-grow border border-gray-300 rounded-lg p-2 text-sm resize-none focus:outline-none focus:ring-2 focus:ring-blue-400"
+          placeholder="Ask about flights, hotels, weather..."
+          rows="1"
+        ></textarea>
+        <button
+          id="send-btn"
+          class="bg-blue-500 hover:bg-blue-600 text-white rounded-lg px-4 py-2 flex items-center justify-center transition"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
             <line x1="22" y1="2" x2="11" y2="13"></line>
             <polygon points="22 2 15 22 11 13 2 9 22 2"></polygon>
-        </svg>
-    </button>
-</div>
+          </svg>
+        </button>
+      </div>
 
-
-<!-- ✅ Inline Loader (keep it here) -->
-<div id="loading-indicator" style="display:none;">
-  <div class="flex items-center justify-center space-x-2 text-gray-600 mt-2">
-    <div class="loading-spinner rounded-full h-4 w-4 border-2 border-blue-200 border-t-blue-600"></div>
-    <span class="font-medium text-sm">Processing your request...</span>
-  </div>
-</div>
-
-
+      <!-- Inline Loader -->
+      <div id="loading-indicator" class="hidden mt-2">
+        <div class="flex items-center justify-center space-x-2 text-gray-600">
+          <div class="loading-spinner rounded-full h-4 w-4 border-2 border-blue-200 border-t-blue-600 animate-spin"></div>
+          <span class="font-medium text-sm">Processing your request...</span>
         </div>
-    </div>
+      </div>
+    </footer>
+
+  </div>
+</body>
+
 
     <!-- Firebase & Application Script -->
     <script type="module">
