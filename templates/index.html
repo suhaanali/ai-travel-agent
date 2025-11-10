@@ -451,29 +451,27 @@ body {
     <!-- Error Boundary Container -->
     <div id="error-boundary" class="hidden"></div>
 
-    <!-- Main Chat Container -->
-    <div class="compact-container">
-        
-        <!-- Header -->
-<header class="compact-header"
-        style="background: linear-gradient(90deg, #0B2C5E 0%, #B2924C 100%);
-               color: white;
-               padding: 0.75rem 1.25rem;
-               border-top-left-radius: 0.75rem;
-               border-top-right-radius: 0.75rem;
-               box-shadow: 0 2px 6px rgba(0,0,0,0.15);">
+   <!-- Main Chat Container -->
+<div class="compact-container w-full max-w-md mx-auto rounded-xl overflow-hidden shadow-lg border border-gray-100 bg-white">
+
+  <!-- Header -->
+  <header
+    class="bg-gradient-to-r from-[#0B2C5E] to-[#B2924C] text-white px-4 sm:px-6 py-3 rounded-t-xl shadow-md">
+    
     <div class="flex items-center justify-between">
-        <div class="flex items-center space-x-3">
-            <div class="bg-white p-1.5 rounded-xl shadow-md flex items-center justify-center header-logo border border-yellow-500/40">
-                <img src="./static/Logo.jpg" alt="Logo" class="w-6 h-6 object-contain">
-            </div>
-            <div>
-                <h1 class="font-semibold text-lg tracking-wide">AI Travel Agent</h1>
-                <p class="text-xs opacity-90">Your intelligent travel companion</p>
-            </div>
+      <!-- Left Section: Logo + Title -->
+      <div class="flex items-center space-x-3">
+        <div class="bg-white p-1.5 rounded-xl shadow-md flex items-center justify-center border border-yellow-500/40">
+          <img src="./static/Logo.jpg" alt="Logo" class="w-6 h-6 sm:w-8 sm:h-8 object-contain">
         </div>
+        <div>
+          <h1 class="font-semibold text-base sm:text-lg tracking-wide">AI Travel Agent</h1>
+          <p class="text-[10px] sm:text-xs opacity-90">Your intelligent travel companion</p>
+        </div>
+      </div>
     </div>
-</header>
+  </header>
+
 
 
         <!-- Chat History Area -->
