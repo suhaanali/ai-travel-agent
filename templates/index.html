@@ -1661,11 +1661,21 @@ sendBtn.addEventListener("click", () => {
 
 // ✅ Enter = send, Shift+Enter = newline
 userInput.addEventListener("keydown", (e) => {
+  // Prevent accidental keyboard reopen or premature blur on mobile
+  const isMobile = /Mobi|Android/i.test(navigator.userAgent);
+
   if (e.key === "Enter" && !e.shiftKey) {
     e.preventDefault();
+
+    // Delay blur slightly so send click registers properly
+    if (isMobile) {
+      setTimeout(() => userInput.blur(), 300);
+    }
+
     sendBtn.click();
   }
 });
+
 
 
 
