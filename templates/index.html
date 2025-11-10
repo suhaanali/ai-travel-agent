@@ -441,7 +441,7 @@ body {
 
 </head>
 
-<body class="bg-gray-50 min-h-screen flex justify-center items-center">
+<body class="bg-gray-50 w-full h-screen overflow-hidden">
   <!-- Decorative floating elements -->
   <div class="floating-element floating-1"></div>
   <div class="floating-element floating-2"></div>
@@ -450,10 +450,10 @@ body {
   <div id="error-boundary" class="hidden"></div>
 
   <!-- Main Chat Container -->
-  <div class="w-full max-w-md sm:rounded-xl sm:shadow-lg bg-white flex flex-col h-[100dvh] sm:h-[90vh] border border-gray-100 overflow-hidden">
+  <div class="absolute inset-0 flex flex-col bg-white border border-gray-100 overflow-hidden">
 
-    <!-- Header -->
-    <header class="bg-gradient-to-r from-[#0B2C5E] to-[#B2924C] text-white px-4 sm:px-6 py-3 shadow-md flex items-center space-x-3">
+    <!-- Header (fixed at top, full width) -->
+    <header class="bg-gradient-to-r from-[#0B2C5E] to-[#B2924C] text-white px-4 py-3 shadow-md flex items-center space-x-3 z-10">
       <div class="bg-white p-1.5 rounded-xl shadow-md flex items-center justify-center border border-yellow-500/40">
         <img src="./static/Logo.jpg" alt="Logo" class="w-6 h-6 sm:w-8 sm:h-8 object-contain">
       </div>
@@ -463,11 +463,11 @@ body {
       </div>
     </header>
 
-    <!-- Chat History Area -->
-    <main id="chat-history" class="flex-1 overflow-y-auto px-4 py-3 space-y-3 bg-gray-50">
+    <!-- Chat Scrollable Area -->
+    <main id="chat-history" class="flex-1 overflow-y-auto px-3 py-4 bg-gray-50 mt-1">
       <!-- Welcome Message -->
       <div class="flex justify-start">
-        <div class="agent-bubble bg-white shadow-sm p-3 rounded-lg max-w-[90%] sm:max-w-[80%]">
+        <div class="bg-white shadow-sm p-3 rounded-lg w-full sm:w-[95%]">
           <div class="flex items-center space-x-3 mb-2">
             <div class="w-8 h-8 rounded-full overflow-hidden shadow-sm flex items-center justify-center bg-white">
               <img src="./static/person.png" alt="AI Travel Agent" class="object-contain w-7 h-7">
@@ -481,20 +481,21 @@ body {
       </div>
 
       <!-- Flight Tabs -->
-      <div id="flight-tabs" class="hidden bg-white rounded-xl shadow-sm mt-3">
+      <div id="flight-tabs" class="hidden bg-white rounded-lg shadow-sm mt-4 w-full">
         <div class="flex border-b border-gray-200 text-sm font-medium">
-          <button class="tab-btn active" data-tab="tab1">One-way</button>
-          <button class="tab-btn" data-tab="tab2">Round-trip</button>
-          <button class="tab-btn" data-tab="tab3">Multi-city</button>
+          <button class="tab-btn active flex-1 text-center py-2" data-tab="tab1">One-way</button>
+          <button class="tab-btn flex-1 text-center py-2" data-tab="tab2">Round-trip</button>
+          <button class="tab-btn flex-1 text-center py-2" data-tab="tab3">Multi-city</button>
         </div>
-        <div id="tab1" class="tab-content block p-4"></div>
-        <div id="tab2" class="tab-content hidden p-4"></div>
-        <div id="tab3" class="tab-content hidden p-4"></div>
+
+        <div id="tab1" class="tab-content block p-3"></div>
+        <div id="tab2" class="tab-content hidden p-3"></div>
+        <div id="tab3" class="tab-content hidden p-3"></div>
       </div>
     </main>
 
-    <!-- Input Area -->
-    <footer class="sticky bottom-0 bg-white border-t border-gray-200 p-3 space-y-3">
+    <!-- Input Area (sticky bottom) -->
+    <footer class="bg-white border-t border-gray-200 p-3 space-y-3 sticky bottom-0 w-full">
       <!-- Selected Flights Summary -->
       <div id="selected-flight-summary" class="multi-city-header hidden">
         <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -552,7 +553,6 @@ body {
         </div>
       </div>
     </footer>
-
   </div>
 </body>
 
