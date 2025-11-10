@@ -1509,12 +1509,18 @@ async function handleUserInput() {
     console.error('Agent communication failed:', error);
     const errorMessage = `I encountered an issue while processing your request. Please try again. (Error: ${error.message})`;
     await saveMessage(errorMessage, 'agent', 'text', null);
-  } finally {
-    showLoading(false);
-    elements.sendBtn.disabled = false;
+} finally {
+  showLoading(false);
+  elements.sendBtn.disabled = false;
+
+  // ✅ Prevent unwanted mobile keyboard popup
+  if (!/Mobi|Android/i.test(navigator.userAgent)) {
     elements.userInput.focus();
+  } else {
+    elements.userInput.blur();
   }
 }
+
 
 
 
