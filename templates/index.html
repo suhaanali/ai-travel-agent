@@ -588,12 +588,13 @@ body {
         import { getFirestore, doc, addDoc, onSnapshot, collection, query, orderBy, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Configuration
-        const CONFIG = {
-            BACKEND_URL:'https://ai-travel-agent-backend.onrender.com/api/search',
-            HISTORY_COLLECTION: 'chat_messages',
-            MAX_RETRIES: 3,
-            RETRY_DELAY: 1000
-        };
+const CONFIG = {
+    BACKEND_URL: 'https://ai-travel-agent-backend-0i7n.onrender.com/api/search',
+    HISTORY_COLLECTION: 'chat_messages',
+    MAX_RETRIES: 3,
+    RETRY_DELAY: 1000
+};
+
 
         // Elements
         const elements = {
