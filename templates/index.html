@@ -898,56 +898,78 @@ header.innerHTML = `
   const offersHTML = offers
   .map(
     offer => `
-    <div class="flight-card border rounded-lg p-2 mb-2 bg-white shadow-sm hover:shadow transition text-[13px] w-[98%] mx-auto">
-      <div class="flex items-center justify-between">
-        <div class="flex items-center space-x-2">
-          <img 
-            src="${offer.logoUrl || `https://content.airhex.com/content/logos/airlines_${offer.carrierCode}_100_100_s.png`}" 
-            alt="${offer.carrierName || 'Airline'} logo"
-            class="w-6 h-6 object-contain rounded bg-gray-50"
-            onerror="this.style.display='none'">
-<div class="text-gray-800">
-  <div class="font-semibold text-[13px] leading-tight">
-    ${offer.carrierName || ''}
-  </div>
-  <div class="text-[11px] text-gray-500 tracking-tight mt-[1px]">
-    ${offer.flightNumber || ''}
-  </div>
-</div>
+      <div class="flight-card border rounded-lg p-2 mb-2 bg-white shadow-sm hover:shadow transition text-[13px] w-full sm:w-[98%] mx-auto">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <img 
+              src="${offer.logoUrl || `https://content.airhex.com/content/logos/airlines_${offer.carrierCode}_100_100_s.png`}" 
+              alt="${offer.carrierName || 'Airline'} logo"
+              class="w-6 h-6 object-contain rounded bg-gray-50"
+              onerror="this.style.display='none'">
+            <div class="text-gray-800">
+              <div class="font-semibold text-[13px] leading-tight">
+                ${offer.carrierName || ''}
+              </div>
+              <div class="text-[11px] text-gray-500 tracking-tight mt-[1px]">
+                ${offer.flightNumber || ''}
+              </div>
+            </div>
+          </div>
 
+          <div class="text-right text-green-600 font-bold text-[14px]">
+            ${offer.price?.total || ''} ${offer.price?.currency || ''}
+          </div>
         </div>
-        <div class="text-right text-green-600 font-bold text-[14px]">
-          ${offer.price?.total || ''} ${offer.price?.currency || ''}
+
+        <div class="flex justify-between mt-2 text-gray-700 text-[12px]">
+          <div>
+            <p><span class="font-medium">${offer.departureTime || ''}</span> Depart</p>
+            <p class="text-gray-500 text-[11px]">${offer.departureDate || ''}</p>
+            <p class="text-gray-500">${offer.origin || ''}</p>
+          </div>
+
+          <div class="text-center">
+            <p>✈️ ${offer.flightDuration || ''}</p>
+            <p class="${offer.stops > 0 ? 'text-orange-600' : 'text-green-600'}">
+              ${offer.stops > 0 ? `${offer.stops} stop` : 'Non-stop'}
+            </p>
+          </div>
+
+          <div class="text-right">
+            <p><span class="font-medium">${offer.arrivalTime || ''}</span> Arrive</p>
+            <p class="text-gray-500 text-[11px]">${offer.arrivalDate || ''}</p>
+            <p class="text-gray-500">${offer.destination || ''}</p>
+          </div>
+        </div>
+
+        <!-- ✅ Baggage + Single-Line Fare Breakdown -->
+        <div class="mt-1 pt-1 text-[11px] text-gray-500 border-t">
+          <span>${offer.baggage || '—'} • ${offer.cabin || 'Economy'}</span>
+
+          <!-- One-line fare breakdown -->
+          <div class="fare-breakdown text-[10px] text-gray-600 mt-1 ml-1 leading-tight flex flex-wrap items-center">
+            ${
+              [
+                offer.fare_breakdown?.adults?.count > 0
+                  ? `👨‍💼 ${offer.fare_breakdown.adults.count}×Adult = ${offer.fare_breakdown.adults.total} ${offer.fare_breakdown.currency}`
+                  : '',
+                offer.fare_breakdown?.children?.count > 0
+                  ? `🧒 ${offer.fare_breakdown.children.count}×Child = ${offer.fare_breakdown.children.total} ${offer.fare_breakdown.currency}`
+                  : '',
+                offer.fare_breakdown?.infants?.count > 0
+                  ? `👶 ${offer.fare_breakdown.infants.count}×Infant = ${offer.fare_breakdown.infants.total} ${offer.fare_breakdown.currency}`
+                  : ''
+              ]
+              .filter(Boolean)
+              .join(' • ')
+            }
+          </div>
         </div>
       </div>
-
-      <div class="flex justify-between mt-2 text-gray-700 text-[12px]">
-        <div>
-          <p><span class="font-medium">${offer.departureTime || ''}</span> Depart</p>
-          <p class="text-gray-500 text-[11px]">${offer.departureDate || ''}</p>
-          <p class="text-gray-500">${offer.origin || ''}</p>
-        </div>
-        <div class="text-center">
-          <p>✈️ ${offer.flightDuration || ''}</p>
-          <p class="${offer.stops > 0 ? 'text-orange-600' : 'text-green-600'}">
-            ${offer.stops > 0 ? `${offer.stops} stop` : 'Non-stop'}
-          </p>
-        </div>
-        <div class="text-right">
-          <p><span class="font-medium">${offer.arrivalTime || ''}</span> Arrive</p>
-          <p class="text-gray-500 text-[11px]">${offer.arrivalDate || ''}</p>
-          <p class="text-gray-500">${offer.destination || ''}</p>
-        </div>
-      </div>
-
-      <div class="mt-1 pt-1 text-[11px] text-gray-500 border-t flex justify-between">
-        <span>${offer.baggage || '—'} • ${offer.cabin || 'Economy'}</span>
-        <span>${offer.aircraft || ''}</span>
-      </div>
-    </div>
-  `
+    `
   )
-  .join("");
+  .join('');
+
 
 
   oneWayTab.innerHTML = offersHTML || "<p class='text-gray-500 text-sm'>No one-way flights found.</p>";
@@ -1016,10 +1038,10 @@ segments.forEach((segment, index) => {
   tabDiv.id = tabId;
   tabDiv.className = "tab-content p-4 hidden";
 
-  const offers = segment.offers || [];
   const offersHTML = offers
-    .map(offer => `
-      <div class="flight-card border rounded-lg p-2 mb-2 bg-white shadow-sm hover:shadow transition text-[13px] w-[98%] mx-auto">
+  .map(
+    offer => `
+      <div class="flight-card border rounded-lg p-2 mb-2 bg-white shadow-sm hover:shadow transition text-[13px] w-full sm:w-[98%] mx-auto">
         <div class="flex items-center justify-between">
           <div class="flex items-center space-x-2">
             <img 
@@ -1028,10 +1050,15 @@ segments.forEach((segment, index) => {
               class="w-6 h-6 object-contain rounded bg-gray-50"
               onerror="this.style.display='none'">
             <div class="text-gray-800">
-              <div class="font-semibold text-[13px] leading-tight">${offer.carrierName || ''}</div>
-              <div class="text-[11px] text-gray-500 tracking-tight mt-[1px]">${offer.flightNumber || ''}</div>
+              <div class="font-semibold text-[13px] leading-tight">
+                ${offer.carrierName || ''}
+              </div>
+              <div class="text-[11px] text-gray-500 tracking-tight mt-[1px]">
+                ${offer.flightNumber || ''}
+              </div>
             </div>
           </div>
+
           <div class="text-right text-green-600 font-bold text-[14px]">
             ${offer.price?.total || ''} ${offer.price?.currency || ''}
           </div>
@@ -1043,12 +1070,14 @@ segments.forEach((segment, index) => {
             <p class="text-gray-500 text-[11px]">${offer.departureDate || ''}</p>
             <p class="text-gray-500">${offer.origin || ''}</p>
           </div>
+
           <div class="text-center">
             <p>✈️ ${offer.flightDuration || ''}</p>
             <p class="${offer.stops > 0 ? 'text-orange-600' : 'text-green-600'}">
               ${offer.stops > 0 ? `${offer.stops} stop` : 'Non-stop'}
             </p>
           </div>
+
           <div class="text-right">
             <p><span class="font-medium">${offer.arrivalTime || ''}</span> Arrive</p>
             <p class="text-gray-500 text-[11px]">${offer.arrivalDate || ''}</p>
@@ -1056,13 +1085,33 @@ segments.forEach((segment, index) => {
           </div>
         </div>
 
-        <div class="mt-1 pt-1 text-[11px] text-gray-500 border-t flex justify-between">
+        <!-- ✅ Baggage + Single-Line Fare Breakdown -->
+        <div class="mt-1 pt-1 text-[11px] text-gray-500 border-t">
           <span>${offer.baggage || '—'} • ${offer.cabin || 'Economy'}</span>
-          <span>${offer.aircraft || ''}</span>
+
+          <!-- One-line fare breakdown -->
+          <div class="fare-breakdown text-[10px] text-gray-600 mt-1 ml-1 leading-tight flex flex-wrap items-center">
+            ${
+              [
+                offer.fare_breakdown?.adults?.count > 0
+                  ? `👨‍💼 ${offer.fare_breakdown.adults.count}×Adult = ${offer.fare_breakdown.adults.total} ${offer.fare_breakdown.currency}`
+                  : '',
+                offer.fare_breakdown?.children?.count > 0
+                  ? `🧒 ${offer.fare_breakdown.children.count}×Child = ${offer.fare_breakdown.children.total} ${offer.fare_breakdown.currency}`
+                  : '',
+                offer.fare_breakdown?.infants?.count > 0
+                  ? `👶 ${offer.fare_breakdown.infants.count}×Infant = ${offer.fare_breakdown.infants.total} ${offer.fare_breakdown.currency}`
+                  : ''
+              ]
+              .filter(Boolean)
+              .join(' • ')
+            }
+          </div>
         </div>
       </div>
-    `)
-    .join('');
+    `
+  )
+  .join('');
 
   tabDiv.innerHTML = offersHTML || `<p class='text-gray-500 text-sm'>No flights found for ${origin} → ${destination}.</p>`;
 
