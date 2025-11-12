@@ -931,8 +931,11 @@ const offersHTML = offers
           <div class="text-center">
             <p>✈️ ${offer.flightDuration || ''}</p>
             <p class="${offer.stops > 0 ? 'text-orange-600' : 'text-green-600'}">
-              ${offer.stops > 0 ? `${offer.stops} stop` : 'Non-stop'}
-            </p>
+  ${offer.stops > 0 
+      ? `${offer.stops} stop${offer.stops > 1 ? 's' : ''} via ${offer.via || ''}` 
+      : 'Non-stop'}
+</p>
+
           </div>
 
           <div class="text-right">
