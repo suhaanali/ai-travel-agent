@@ -1027,10 +1027,11 @@ oneWayTab.querySelectorAll(".flight-card").forEach(card => {
   card.replaceWith(newCard);
 
   // Add a single clean listener
-  newCard.addEventListener("click", () => {
-    const flight = JSON.parse(newCard.dataset.flight);
-    handleSingleSelection(flight, newCard, oneWayTab);
-  });
+newCard.addEventListener("click", () => {
+  const flight = JSON.parse(newCard.dataset.flight);
+  toggleSelection(flight, newCard);
+});
+
 
 });
 
@@ -1217,10 +1218,11 @@ segments.forEach((segment, index) => {
 
   // Enable click selection
   tabDiv.querySelectorAll(".flight-card").forEach(card => {
-    card.addEventListener("click", () => {
-      const flight = JSON.parse(card.dataset.flight);
-      handleSingleSelection(flight, card, tabDiv);
-    });
+card.addEventListener("click", () => {
+  const flight = JSON.parse(card.dataset.flight);
+  toggleSelection(flight, card);
+});
+
   });
 });
 
@@ -1270,26 +1272,24 @@ if (firstTab) firstTab.click();
 }
 
 
-function handleSingleSelection(flight, cardElement, parentContainer) {
-  parentContainer.querySelectorAll(".flight-card.selected").forEach(el => {
-    el.classList.remove("selected", "ring-2", "ring-[#B2924C]", "bg-[#fffbea]");
-  });
+function toggleSelection(flight, card) {
+  const selected = window.appState.selectedFlights;
 
-  if (cardElement.classList.contains("selected")) {
-    cardElement.classList.remove("selected", "ring-2", "ring-[#B2924C]", "bg-[#fffbea]");
-    window.appState.selectedFlights = window.appState.selectedFlights.filter(
-      f => f.flightNumber !== flight.flightNumber
-    );
+  const index = selected.findIndex(f => f.flightNumber === flight.flightNumber);
+
+  if (index === -1) {
+    // Select
+    selected.push(flight);
+    card.classList.add("ring-2", "ring-[#B2924C]", "bg-[#fffbea]", "selected");
   } else {
-    cardElement.classList.add("selected", "ring-2", "ring-[#B2924C]", "bg-[#fffbea]");
-    window.appState.selectedFlights = window.appState.selectedFlights.filter(
-      f => !(f.origin === flight.origin && f.destination === flight.destination)
-    );
-    window.appState.selectedFlights.push(flight);
+    // Unselect
+    selected.splice(index, 1);
+    card.classList.remove("ring-2", "ring-[#B2924C]", "bg-[#fffbea]", "selected");
   }
 
   updateSelectionSummary();
 }
+
 
 
 
@@ -1389,7 +1389,9 @@ document.addEventListener("DOMContentLoaded", () => {
     let message = "=== SELECTED FLIGHTS ===\n\n";
 
     sorted.forEach((f, i) => {
-      const label = i === 0 ? "Outbound" : "Inbound";
+      const firstOrigin = sorted[0].origin;
+const label = f.origin === firstOrigin ? "Outbound" : "Inbound";
+
 
       const stopInfo =
         f.stops > 0
@@ -1405,12 +1407,9 @@ document.addEventListener("DOMContentLoaded", () => {
       message += `• Price (for all pax): ${f.price.total} ${f.price.currency}\n\n`;
     });
 
-    navigator.clipboard.writeText(message)
-      .then(() => alert("Copied to clipboard!"))
-      .catch(err => {
-        console.error("Clipboard copy failed", err);
-        alert("❌ Copy failed, please try manually.");
-      });
+   navigator.clipboard.writeText(message).catch(err => {
+  console.error("Clipboard copy failed", err);
+});
   });
 });
 
