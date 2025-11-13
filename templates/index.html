@@ -513,9 +513,7 @@ body {
             <button id="confirm-selection-btn" class="select-flight text-xs hidden">
               Confirm Selection
             </button>
-            <button id="clear-selected-flights" class="text-xs text-blue-600 hover:text-blue-800 font-medium transition-colors">
-              Clear ✖
-            </button>
+
           </div>
         </div>
       </div>
@@ -612,8 +610,6 @@ body {
   </style>
 </body>
 
-
-
     <!-- Firebase & Application Script -->
     <script type="module">
         import { initializeApp } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-app.js";
@@ -621,12 +617,13 @@ body {
         import { getFirestore, doc, addDoc, onSnapshot, collection, query, orderBy, setLogLevel } from "https://www.gstatic.com/firebasejs/11.6.1/firebase-firestore.js";
 
         // Configuration
-const CONFIG = {
-    BACKEND_URL: 'https://ai-travel-agent-backend-0i7n.onrender.com/api/search',
-    HISTORY_COLLECTION: 'chat_messages',
-    MAX_RETRIES: 3,
-    RETRY_DELAY: 1000
-};
+        const CONFIG = {
+            BACKEND_URL: 'http://localhost:5000/api/search',
+            HISTORY_COLLECTION: 'chat_messages',
+            MAX_RETRIES: 3,
+            RETRY_DELAY: 1000
+        };
+window.__block_auto_focus = false;
 
 
         // Elements
@@ -667,6 +664,64 @@ function showLoading(show = true) {
     elements.sendBtn.disabled = false;
   }
 }
+
+
+function addSelectAllToggle(container) {
+  if (!container) return;
+
+  // Avoid duplicate buttons
+  if (container.querySelector(".select-all-toggle")) return;
+
+  const selectAllBtn = document.createElement("button");
+  selectAllBtn.className =
+    "select-all-toggle bg-blue-600 text-white px-3 py-1 rounded text-xs mt-3";
+  selectAllBtn.textContent = "Select All Flights";
+
+  selectAllBtn.addEventListener("click", () => {
+    const cards = container.querySelectorAll(".flight-card");
+
+    if (cards.length === 0) return;
+
+    const allSelected = [...cards].every(card =>
+      card.classList.contains("selected")
+    );
+
+    if (allSelected) {
+      // 👉 DESELECT ALL
+      window.appState.selectedFlights = [];
+
+      cards.forEach(card => {
+        card.classList.remove("selected", "ring-2", "ring-blue-500", "bg-blue-50");
+      });
+
+      selectAllBtn.textContent = "Select All Flights";
+      updateSelectionSummary();
+      return;
+    }
+
+    // 👉 SELECT ALL
+    window.appState.selectedFlights = [];
+
+    cards.forEach(card => {
+      const flight = JSON.parse(card.dataset.flight);
+      window.appState.selectedFlights.push(flight);
+      card.classList.add("selected", "ring-2", "ring-blue-500", "bg-blue-50");
+    });
+
+    selectAllBtn.textContent = "Deselect All Flights";
+    updateSelectionSummary();
+  });
+
+  container.appendChild(selectAllBtn);
+}
+
+
+
+
+
+
+
+
 
 
         function showError(message) {
@@ -806,55 +861,51 @@ function displayMessage(text, role, type = "text", data = null) {
 function renderFlightRecommendation(flightData, headerText) {
   const chatHistory = document.getElementById("chat-history");
 
-  // Create agent bubble container (no duplicates)
+  // Create agent bubble container
   const bubble = document.createElement("div");
   bubble.className = "agent-bubble compact-bubble";
 
   // Clone the hidden flight tabs template
   const tabsTemplate = document.getElementById("flight-tabs");
   const tabsClone = tabsTemplate.cloneNode(true);
-// ✅ Fix possible reversed tab button layout
-const tabButtonsContainer = tabsClone.querySelector(".tab-buttons, .flex");
-if (tabButtonsContainer) {
-  tabButtonsContainer.classList.remove("flex-row-reverse", "justify-end", "space-x-reverse");
-  tabButtonsContainer.classList.add("flex-row", "justify-start");
-}
 
+  // ✅ Fix possible reversed tab layout
+  const tabButtonsContainer = tabsClone.querySelector(".tab-buttons, .flex");
+  if (tabButtonsContainer) {
+    tabButtonsContainer.classList.remove("flex-row-reverse", "justify-end", "space-x-reverse");
+    tabButtonsContainer.classList.add("flex-row", "justify-start");
+  }
 
-  tabsClone.id = ""; // remove duplicate ID
+  tabsClone.id = ""; // avoid duplicate IDs
   tabsClone.classList.remove("hidden");
 
-  // Add header text above the tabs inside the same bubble
-const header = document.createElement("div");
-header.className =
-  "flex items-center text-[13px] font-medium text-white mb-2 rounded-md px-3 py-1.5 shadow-sm";
-header.style.background = "linear-gradient(90deg, #0B2C5E 0%, #B2924C 100%)";
-header.innerHTML = `
-  <span class="mr-2 text-white text-sm">✈️</span>
-  <span>${headerText}</span>
-`;
-
-
-
+  // Add header
+  const header = document.createElement("div");
+  header.className =
+    "flex items-center text-[13px] font-medium text-white mb-2 rounded-md px-3 py-1.5 shadow-sm";
+  header.style.background = "linear-gradient(90deg, #0B2C5E 0%, #B2924C 100%)";
+  header.innerHTML = `
+    <span class="mr-2 text-white text-sm">✈️</span>
+    <span>${headerText}</span>
+  `;
 
   bubble.appendChild(header);
   bubble.appendChild(tabsClone);
 
-  // ✅ Assemble full message structure (AI avatar + bubble)
+
+  // Wrap in chat message
   const messageWrapper = document.createElement("div");
   messageWrapper.className = "flex justify-start mb-4";
-
   const avatar = document.createElement("div");
   avatar.className =
     "w-8 h-8 rounded-full overflow-hidden shadow-sm flex items-center justify-center bg-white mr-3";
-  avatar.innerHTML = `<img src="./static/person.png" alt="AI Travel Agent" class="object-contain w-7 h-7">`;
-
+  avatar.innerHTML = `<img src="/static/person.png" alt="AI Travel Agent" class="object-contain w-7 h-7">`;
   messageWrapper.appendChild(avatar);
   messageWrapper.appendChild(bubble);
   chatHistory.appendChild(messageWrapper);
   chatHistory.scrollTop = chatHistory.scrollHeight;
 
-  // Initialize tabs for this response
+  // Init tabs
   initLocalTabs(tabsClone);
 
   // === Determine trip type ===
@@ -866,10 +917,9 @@ header.innerHTML = `
       ? "multiCity"
       : "oneWay");
 
-  // === Hide irrelevant tabs ===
+  // === Show/hide relevant tabs ===
   const tabButtons = tabsClone.querySelectorAll(".tab-btn");
   const tabContents = tabsClone.querySelectorAll(".tab-content");
-
   tabButtons.forEach(btn => (btn.style.display = "block"));
   tabContents.forEach(tab => (tab.style.display = "block"));
 
@@ -890,113 +940,171 @@ header.innerHTML = `
     tabsClone.querySelector("#tab2").style.display = "none";
   }
 
-  // === Render One-way flights ===
+  // === Render One-Way Flights ===
   if (tripType === "oneWay") {
-  const oneWayTab = tabsClone.querySelector("#tab1");
-  const offers = flightData.offers || flightData.flights?.[0]?.offers || [];
+    const oneWayTab = tabsClone.querySelector("#tab1");
+    const offers = flightData.offers || flightData.flights?.[0]?.offers || [];
 
-const offersHTML = offers
-  .map(
-    offer => `
-      <div class="flight-card border rounded-lg p-2 mb-2 bg-white shadow-sm hover:shadow transition text-[13px] w-full sm:w-[98%] mx-auto">
-        <div class="flex items-center justify-between">
-          <div class="flex items-center space-x-2">
-            <img 
-              src="${offer.logoUrl || `https://content.airhex.com/content/logos/airlines_${offer.carrierCode}_100_100_s.png`}" 
-              alt="${offer.carrierName || 'Airline'} logo"
-              class="w-6 h-6 object-contain rounded bg-gray-50"
-              onerror="this.style.display='none'">
-            <div class="text-gray-800">
-              <div class="font-semibold text-[13px] leading-tight">
-                ${offer.carrierName || ''}
+    const offersHTML = offers
+      .map(
+        offer => `
+          <div 
+            class="flight-card border rounded-lg p-2 mb-2 bg-white shadow-sm hover:shadow transition text-[13px] 
+                   w-full sm:w-[98%] mx-auto cursor-pointer"
+            data-flight='${JSON.stringify(offer)}'>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center space-x-2">
+                <img 
+                  src="${offer.logoUrl || `https://content.airhex.com/content/logos/airlines_${offer.carrierCode}_100_100_s.png`}" 
+                  alt="${offer.carrierName || 'Airline'} logo"
+                  class="w-6 h-6 object-contain rounded bg-gray-50"
+                  onerror="this.style.display='none'">
+                <div class="text-gray-800">
+                  <div class="font-semibold text-[13px] leading-tight">
+                    ${offer.carrierName || ''}
+                  </div>
+                  <div class="text-[11px] text-gray-500 tracking-tight mt-[1px]">
+                    ${offer.flightNumber || ''}
+                  </div>
+                </div>
               </div>
-              <div class="text-[11px] text-gray-500 tracking-tight mt-[1px]">
-                ${offer.flightNumber || ''}
+              <div class="text-right text-green-600 font-bold text-[14px]">
+                ${offer.price?.total || ''} ${offer.price?.currency || ''}
               </div>
             </div>
-          </div>
 
-          <div class="text-right text-green-600 font-bold text-[14px]">
-            ${offer.price?.total || ''} ${offer.price?.currency || ''}
-          </div>
-        </div>
+            <div class="flex justify-between mt-2 text-gray-700 text-[12px]">
+              <div>
+                <p><span class="font-medium">${offer.departureTime || ''}</span> Depart</p>
+                <p class="text-gray-500 text-[11px]">${offer.departureDate || ''}</p>
+                <p class="text-gray-500">${offer.origin || ''}</p>
+              </div>
+              <div class="text-center">
+                <p>✈️ ${offer.flightDuration || ''}</p>
+                <p class="${offer.stops > 0 ? 'text-orange-600' : 'text-green-600'}">
+                  ${offer.stops > 0 
+                      ? `${offer.stops} stop${offer.stops > 1 ? 's' : ''} via ${offer.via || ''}` 
+                      : 'Non-stop'}
+                </p>
+              </div>
+              <div class="text-right">
+                <p><span class="font-medium">${offer.arrivalTime || ''}</span> Arrive</p>
+                <p class="text-gray-500 text-[11px]">${offer.arrivalDate || ''}</p>
+                <p class="text-gray-500">${offer.destination || ''}</p>
+              </div>
+            </div>
 
-        <div class="flex justify-between mt-2 text-gray-700 text-[12px]">
-          <div>
-            <p><span class="font-medium">${offer.departureTime || ''}</span> Depart</p>
-            <p class="text-gray-500 text-[11px]">${offer.departureDate || ''}</p>
-            <p class="text-gray-500">${offer.origin || ''}</p>
-          </div>
+            <div class="mt-1 pt-1 text-[11px] text-gray-500 border-t">
+              <span>${offer.baggage || '—'} • ${offer.cabin || 'Economy'}</span>
+              <div class="fare-breakdown text-[10px] text-gray-600 mt-1 ml-1 leading-tight flex flex-wrap items-center">
+                ${
+                  [
+                    offer.fare_breakdown?.adults?.count > 0
+                      ? `👨‍💼 ${offer.fare_breakdown.adults.count}×Adult = ${offer.fare_breakdown.adults.total} ${offer.fare_breakdown.currency}`
+                      : '',
+                    offer.fare_breakdown?.children?.count > 0
+                      ? `🧒 ${offer.fare_breakdown.children.count}×Child = ${offer.fare_breakdown.children.total} ${offer.fare_breakdown.currency}`
+                      : '',
+                    offer.fare_breakdown?.infants?.count > 0
+                      ? `👶 ${offer.fare_breakdown.infants.count}×Infant = ${offer.fare_breakdown.infants.total} ${offer.fare_breakdown.currency}`
+                      : ''
+                  ].filter(Boolean).join(' • ')
+                }
+              </div>
+            </div>
+          </div>`
+      )
+      .join('');
 
-          <div class="text-center">
-            <p>✈️ ${offer.flightDuration || ''}</p>
-            <p class="${offer.stops > 0 ? 'text-orange-600' : 'text-green-600'}">
-  ${offer.stops > 0 
-      ? `${offer.stops} stop${offer.stops > 1 ? 's' : ''} via ${offer.via || ''}` 
-      : 'Non-stop'}
-</p>
+oneWayTab.innerHTML =
+  offersHTML || "<p class='text-gray-500 text-sm'>No one-way flights found.</p>";
 
-          </div>
+// ⭐ Optimized Click Handler (prevents duplicate listeners)
+oneWayTab.querySelectorAll(".flight-card").forEach(card => {
 
-          <div class="text-right">
-            <p><span class="font-medium">${offer.arrivalTime || ''}</span> Arrive</p>
-            <p class="text-gray-500 text-[11px]">${offer.arrivalDate || ''}</p>
-            <p class="text-gray-500">${offer.destination || ''}</p>
-          </div>
-        </div>
+  // Remove ALL old listeners by cloning the node
+  const newCard = card.cloneNode(true);
+  card.replaceWith(newCard);
 
-        <!-- ✅ Baggage + Single-Line Fare Breakdown -->
-        <div class="mt-1 pt-1 text-[11px] text-gray-500 border-t">
-          <span>${offer.baggage || '—'} • ${offer.cabin || 'Economy'}</span>
+  // Add a single clean listener
+  newCard.addEventListener("click", () => {
+    const flight = JSON.parse(newCard.dataset.flight);
+    handleSingleSelection(flight, newCard, oneWayTab);
+  });
 
-          <!-- One-line fare breakdown -->
-          <div class="fare-breakdown text-[10px] text-gray-600 mt-1 ml-1 leading-tight flex flex-wrap items-center">
-            ${
-              [
-                offer.fare_breakdown?.adults?.count > 0
-                  ? `👨‍💼 ${offer.fare_breakdown.adults.count}×Adult = ${offer.fare_breakdown.adults.total} ${offer.fare_breakdown.currency}`
-                  : '',
-                offer.fare_breakdown?.children?.count > 0
-                  ? `🧒 ${offer.fare_breakdown.children.count}×Child = ${offer.fare_breakdown.children.total} ${offer.fare_breakdown.currency}`
-                  : '',
-                offer.fare_breakdown?.infants?.count > 0
-                  ? `👶 ${offer.fare_breakdown.infants.count}×Infant = ${offer.fare_breakdown.infants.total} ${offer.fare_breakdown.currency}`
-                  : ''
-              ]
-              .filter(Boolean)
-              .join(' • ')
-            }
-          </div>
-        </div>
-      </div>
-    `
-  )
-  .join('');
+});
 
-  oneWayTab.innerHTML = offersHTML || "<p class='text-gray-500 text-sm'>No one-way flights found.</p>";
-  return;
+// ⭐ ADD SELECT-ALL TOGGLE FOR ONE-WAY
+addSelectAllToggle(oneWayTab);
+
+return;
+
+
+
+// ⭐ ADD SELECT ALL / DESELECT ALL FOR MULTI-CITY ⭐
+setTimeout(() => {
+  const selectAllBtn = document.createElement("button");
+  selectAllBtn.id = "select-all-flights-global";
+  selectAllBtn.textContent = "Select All Flights";
+  selectAllBtn.className =
+    "bg-blue-600 text-white px-3 py-1 rounded text-xs mt-3";
+
+  selectAllBtn.addEventListener("click", () => {
+
+    // ⭐ This NOW sees flights from ALL segments (because rendering is finished)
+    const allCards = tabsClone.querySelectorAll(".flight-card");
+
+    const allSelected = [...allCards].every(card =>
+      card.classList.contains("selected")
+    );
+
+    if (allSelected) {
+      // UNSELECT ALL
+      window.appState.selectedFlights = [];
+      allCards.forEach(card =>
+        card.classList.remove("selected","ring-2","ring-blue-500","bg-blue-50")
+      );
+      updateSelectionSummary();
+      selectAllBtn.textContent = "Select All Flights";
+      return;
+    }
+
+    // SELECT ALL
+    window.appState.selectedFlights = [];
+
+    allCards.forEach(card => {
+      const flight = JSON.parse(card.dataset.flight);
+      window.appState.selectedFlights.push(flight);
+      card.classList.add("selected","ring-2","ring-blue-500","bg-blue-50");
+    });
+
+    updateSelectionSummary();
+    selectAllBtn.textContent = "Deselect All Flights";
+  });
+
+  bubble.appendChild(selectAllBtn);
+}, 80); // allow ALL tabs to finish rendering
+
+
+
+
+return;
 }
 
 
- 
+// === Render Round-Trip / Multi-City ===
+const tabButtonsContainer2 = tabsClone.querySelector(".flex");
+const contentWrapper = tabsClone;
 
-/// === Multi-City or Round-Trip flights ===
-if (tripType === "multiCity" || tripType === "roundTrip") {
-  // Find the tabs button row and content wrapper
-  const tabButtonsContainer = tabsClone.querySelector(".flex");
-  const contentWrapper = tabsClone; // everything lives inside this clone
+// Remove preset tabs
+tabButtonsContainer2.innerHTML = "";
+["#tab1", "#tab2", "#tab3"].forEach(sel => {
+  const el = tabsClone.querySelector(sel);
+  if (el) el.remove();
+});
 
-  // Clear default tabs
-  tabButtonsContainer.innerHTML = "";
-  ["#tab1", "#tab2", "#tab3"].forEach(sel => {
-    const el = tabsClone.querySelector(sel);
-    if (el) el.remove(); // remove old static tabs safely
-  });
-
-  // Build new tabs for each segment
-  let segments = flightData.flights || [];
-
-// ✅ Ensure outbound (original route) appears first
+// Normalize segment order
+let segments = flightData.flights || [];
 if (segments.length === 2) {
   const [seg1, seg2] = segments;
   const isReversed =
@@ -1004,137 +1112,337 @@ if (segments.length === 2) {
     seg2.destination &&
     seg1.origin === seg2.destination &&
     seg1.destination === seg2.origin;
-
-  if (isReversed) {
-    console.warn("🧭 Fixing reversed flight order in UI");
-    segments = [seg2, seg1];
-  }
+  if (isReversed) segments = [seg2, seg1];
 }
-// 🔧 Sort segments by departure date to ensure natural order
-segments = (segments || []).slice().sort((a, b) => {
-  const da = new Date(a.departureDate || 0);
-  const db = new Date(b.departureDate || 0);
-  return da - db;
-});
 
-// ✅ Preserve backend order (outbound first, return second)
+segments = segments.slice().sort(
+  (a, b) => new Date(a.departureDate) - new Date(b.departureDate)
+);
+
+// === Build tabs & flights ===
 segments.forEach((segment, index) => {
   const segNum = index + 1;
   const origin = segment.origin || segment.offers?.[0]?.origin || "N/A";
-  const destination = segment.destination || segment.offers?.[0]?.destination || "N/A";
+  const destination =
+    segment.destination || segment.offers?.[0]?.destination || "N/A";
   const tabId = `segment-tab-${segNum}`;
 
-  // Create tab button
+  // Tab Button
   const button = document.createElement("button");
   button.className =
     "tab-btn flex-1 py-2 text-center font-medium text-gray-600 hover:text-blue-600 border-b-2 border-transparent focus:outline-none";
   button.dataset.tab = tabId;
   button.textContent = `${origin} → ${destination}`;
+  tabButtonsContainer2.appendChild(button);
 
-  // 🟢 Append instead of prepend to maintain order
-  tabButtonsContainer.appendChild(button);
-
-  // Create tab content
+  // Tab Content
   const tabDiv = document.createElement("div");
   tabDiv.id = tabId;
   tabDiv.className = "tab-content p-4 hidden";
 
-    const offers = segment.offers || [];
+  const offers = segment.offers || [];
   const offersHTML = offers
-  .map(
-    offer => `
-      <div class="flight-card border rounded-lg p-2 mb-2 bg-white shadow-sm hover:shadow transition text-[13px] w-full sm:w-[98%] mx-auto">
+    .map(
+      offer => `
+      <div class="flight-card border rounded-lg p-2 mb-2 bg-white shadow-sm hover:shadow transition text-[13px]
+                  w-full sm:w-[98%] mx-auto cursor-pointer"
+           data-flight='${JSON.stringify(offer)}'>
         <div class="flex items-center justify-between">
           <div class="flex items-center space-x-2">
-            <img 
-              src="${offer.logoUrl || `https://content.airhex.com/content/logos/airlines_${offer.carrierCode}_100_100_s.png`}" 
-              alt="${offer.carrierName || 'Airline'} logo"
+            <img
+              src="${
+                offer.logoUrl ||
+                `https://content.airhex.com/content/logos/airlines_${offer.carrierCode}_100_100_s.png`
+              }"
+              alt="${offer.carrierName || "Airline"} logo"
               class="w-6 h-6 object-contain rounded bg-gray-50"
               onerror="this.style.display='none'">
             <div class="text-gray-800">
-              <div class="font-semibold text-[13px] leading-tight">
-                ${offer.carrierName || ''}
-              </div>
-              <div class="text-[11px] text-gray-500 tracking-tight mt-[1px]">
-                ${offer.flightNumber || ''}
-              </div>
+              <div class="font-semibold text-[13px] leading-tight">${
+                offer.carrierName || ""
+              }</div>
+              <div class="text-[11px] text-gray-500 tracking-tight mt-[1px]">${
+                offer.flightNumber || ""
+              }</div>
             </div>
           </div>
-
           <div class="text-right text-green-600 font-bold text-[14px]">
-            ${offer.price?.total || ''} ${offer.price?.currency || ''}
+            ${offer.price?.total || ""} ${offer.price?.currency || ""}
           </div>
         </div>
 
         <div class="flex justify-between mt-2 text-gray-700 text-[12px]">
           <div>
-            <p><span class="font-medium">${offer.departureTime || ''}</span> Depart</p>
-            <p class="text-gray-500 text-[11px]">${offer.departureDate || ''}</p>
-            <p class="text-gray-500">${offer.origin || ''}</p>
+            <p><span class="font-medium">${
+              offer.departureTime || ""
+            }</span> Depart</p>
+            <p class="text-gray-500 text-[11px]">${offer.departureDate ||
+              ""}</p>
+            <p class="text-gray-500">${offer.origin || ""}</p>
           </div>
 
           <div class="text-center">
-            <p>✈️ ${offer.flightDuration || ''}</p>
-           <p class="${offer.stops > 0 ? 'text-orange-600' : 'text-green-600'}">
-  ${offer.stops > 0 
-      ? `${offer.stops} stop${offer.stops > 1 ? 's' : ''} via ${offer.via || ''}` 
-      : 'Non-stop'}
-</p>
-
+            <p>✈️ ${offer.flightDuration || ""}</p>
+            <p class="${
+              offer.stops > 0 ? "text-orange-600" : "text-green-600"
+            }">
+              ${
+                offer.stops > 0
+                  ? `${offer.stops} stop${
+                      offer.stops > 1 ? "s" : ""
+                    } via ${offer.via || ""}`
+                  : "Non-stop"
+              }
+            </p>
           </div>
 
           <div class="text-right">
-            <p><span class="font-medium">${offer.arrivalTime || ''}</span> Arrive</p>
-            <p class="text-gray-500 text-[11px]">${offer.arrivalDate || ''}</p>
-            <p class="text-gray-500">${offer.destination || ''}</p>
+            <p><span class="font-medium">${
+              offer.arrivalTime || ""
+            }</span> Arrive</p>
+            <p class="text-gray-500 text-[11px]">${offer.arrivalDate ||
+              ""}</p>
+            <p class="text-gray-500">${offer.destination || ""}</p>
           </div>
         </div>
+      </div>`
+    )
+    .join("");
 
-        <!-- ✅ Baggage + Single-Line Fare Breakdown -->
-        <div class="mt-1 pt-1 text-[11px] text-gray-500 border-t">
-          <span>${offer.baggage || '—'} • ${offer.cabin || 'Economy'}</span>
+  tabDiv.innerHTML =
+    offersHTML ||
+    `<p class="text-gray-500 text-sm">No flights found for ${origin} → ${destination}</p>`;
 
-          <!-- One-line fare breakdown -->
-          <div class="fare-breakdown text-[10px] text-gray-600 mt-1 ml-1 leading-tight flex flex-wrap items-center">
-            ${
-              [
-                offer.fare_breakdown?.adults?.count > 0
-                  ? `👨‍💼 ${offer.fare_breakdown.adults.count}×Adult = ${offer.fare_breakdown.adults.total} ${offer.fare_breakdown.currency}`
-                  : '',
-                offer.fare_breakdown?.children?.count > 0
-                  ? `🧒 ${offer.fare_breakdown.children.count}×Child = ${offer.fare_breakdown.children.total} ${offer.fare_breakdown.currency}`
-                  : '',
-                offer.fare_breakdown?.infants?.count > 0
-                  ? `👶 ${offer.fare_breakdown.infants.count}×Infant = ${offer.fare_breakdown.infants.total} ${offer.fare_breakdown.currency}`
-                  : ''
-              ]
-              .filter(Boolean)
-              .join(' • ')
-            }
-          </div>
-        </div>
-      </div>
-    `
-  )
-  .join('');
-
-  tabDiv.innerHTML = offersHTML || `<p class='text-gray-500 text-sm'>No flights found for ${origin} → ${destination}.</p>`;
-
-  // 🟢 Append content after creating button
   contentWrapper.appendChild(tabDiv);
+
+  // Enable click selection
+  tabDiv.querySelectorAll(".flight-card").forEach(card => {
+    card.addEventListener("click", () => {
+      const flight = JSON.parse(card.dataset.flight);
+      handleSingleSelection(flight, card, tabDiv);
+    });
+  });
+});
+
+// ⭐ GLOBAL SELECT ALL BUTTON (CORRECT, SAFE)
+const globalSelectAllBtn = document.createElement("button");
+globalSelectAllBtn.textContent = "Select All Flights";
+globalSelectAllBtn.className =
+  "bg-blue-600 text-white px-3 py-1 rounded text-xs mt-3";
+
+globalSelectAllBtn.addEventListener("click", () => {
+  const allCards = tabsClone.querySelectorAll(".flight-card");
+
+  const allSelected = [...allCards].every(card =>
+    card.classList.contains("ring-2")
+  );
+
+  if (allSelected) {
+    // DESELECT ALL
+    window.appState.selectedFlights = [];
+    allCards.forEach(card =>
+      card.classList.remove("ring-2", "ring-blue-500", "bg-blue-50")
+    );
+    globalSelectAllBtn.textContent = "Select All Flights";
+    updateSelectionSummary();
+    return;
+  }
+
+  // SELECT ALL
+  window.appState.selectedFlights = [];
+  allCards.forEach(card => {
+    const flight = JSON.parse(card.dataset.flight);
+    window.appState.selectedFlights.push(flight);
+    card.classList.add("ring-2", "ring-blue-500", "bg-blue-50");
+  });
+
+  globalSelectAllBtn.textContent = "Deselect All Flights";
+  updateSelectionSummary();
+});
+
+// Add global select-all below whole bubble
+bubble.appendChild(globalSelectAllBtn);
+
+// Initialize tabs
+if (typeof initLocalTabs === "function") initLocalTabs(tabsClone);
+const firstTab = tabsClone.querySelector(".tab-btn");
+if (firstTab) firstTab.click();
+}
+
+
+function handleSingleSelection(flight, cardElement, parentContainer) {
+  parentContainer.querySelectorAll(".flight-card.selected").forEach(el => {
+    el.classList.remove("selected", "ring-2", "ring-[#B2924C]", "bg-[#fffbea]");
+  });
+
+  if (cardElement.classList.contains("selected")) {
+    cardElement.classList.remove("selected", "ring-2", "ring-[#B2924C]", "bg-[#fffbea]");
+    window.appState.selectedFlights = window.appState.selectedFlights.filter(
+      f => f.flightNumber !== flight.flightNumber
+    );
+  } else {
+    cardElement.classList.add("selected", "ring-2", "ring-[#B2924C]", "bg-[#fffbea]");
+    window.appState.selectedFlights = window.appState.selectedFlights.filter(
+      f => !(f.origin === flight.origin && f.destination === flight.destination)
+    );
+    window.appState.selectedFlights.push(flight);
+  }
+
+  updateSelectionSummary();
+}
+
+
+
+
+function updateSelectionSummary() {
+  const selected = window.appState.selectedFlights || [];
+  const summary = document.getElementById("selected-flight-summary");
+  const text = document.getElementById("selected-flight-text");
+  const copyBtn = document.getElementById("multi-copy-btn");
+  const container = document.getElementById("multi-copy-container");
+
+  if (selected.length > 0) {
+    // Sort flights by date to ensure grouping and order
+    const sorted = selected.slice().sort((a, b) => new Date(a.departureDate) - new Date(b.departureDate));
+
+    // ✔️ Determine outbound direction using the first flight's origin
+    const firstOrigin = sorted[0].origin;
+
+    // Build detailed summary lines
+    const summaryLines = sorted.map((f, i) => {
+
+      // ✔️ Correct label logic
+      const label = f.origin === firstOrigin ? "Outbound" : "Inbound";
+
+      const totalPrice =
+        f.price?.total && f.price?.currency
+          ? `${f.price.total} ${f.price.currency}`
+          : "N/A";
+
+      const depDate = f.departureDate ? formatDate(f.departureDate) : "--";
+      const arrDate = f.arrivalDate ? formatDate(f.arrivalDate) : "--";
+
+      // Stop info
+      const stopInfo = f.stops > 0
+        ? `${f.stops} stop${f.stops > 1 ? "s" : ""} via ${f.via}`
+        : "Non-stop";
+
+      return `${i + 1}) ${label}: ${f.origin} → ${f.destination} (${f.carrierName || "Airline"}), ` +
+             `DEP: ${f.departureTime || "--"} (${depDate}), ARR: ${f.arrivalTime || "--"} (${arrDate}), ` +
+             `${stopInfo}, Price (for all pax): ${totalPrice}`;
+    });
+
+    // Update footer HTML
+    summary.classList.remove("hidden");
+    container.classList.remove("hidden");
+    text.innerHTML = summaryLines.join("<br>");
+    copyBtn.textContent = `Copy ${selected.length} Selected Flight${selected.length > 1 ? "s" : ""}`;
+  } else {
+    summary.classList.add("hidden");
+    container.classList.add("hidden");
+    text.innerHTML = "";
+  }
+}
+
+
+
+function formatDate(dateStr) {
+  try {
+    const d = new Date(dateStr);
+    if (isNaN(d)) return dateStr; // fallback if invalid
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = d.toLocaleString("en", { month: "short" });
+    const year = d.getFullYear();
+    return `${day} ${month} ${year}`;
+  } catch {
+    return dateStr;
+  }
+}
+
+
+document.addEventListener("DOMContentLoaded", () => {
+  const copyBtn = document.getElementById("multi-copy-btn");
+  const userInput = document.getElementById("user-input");
+
+  if (!copyBtn) return;
+
+  copyBtn.addEventListener("click", (event) => {
+    event.preventDefault();
+    event.stopPropagation();
+
+    // ❗ Tell system NOT to auto-focus after this
+    window.__block_auto_focus = true;
+
+    // ❗ Blur input so text does NOT auto-insert
+    if (userInput) userInput.blur();
+
+    const selected = window.appState.selectedFlights || [];
+    if (selected.length === 0) {
+      alert("No flights selected yet!");
+      return;
+    }
+
+    const sorted = selected.slice().sort(
+      (a, b) => new Date(a.departureDate) - new Date(b.departureDate)
+    );
+
+    let message = "=== SELECTED FLIGHTS ===\n\n";
+
+    sorted.forEach((f, i) => {
+      const label = i === 0 ? "Outbound" : "Inbound";
+
+      const stopInfo =
+        f.stops > 0
+          ? `${f.stops} stop${f.stops > 1 ? "s" : ""} via ${f.via}`
+          : "Non-stop";
+
+      message += `FLIGHT ${i + 1}: ${label}\n`;
+      message += `• ${f.carrierName || "Airline"} ${f.flightNumber || ""}\n`;
+      message += `• Route: ${f.origin} → ${f.destination}\n`;
+      message += `• Departure: ${f.departureTime} (${formatDate(f.departureDate)})\n`;
+      message += `• Arrival: ${f.arrivalTime} (${formatDate(f.arrivalDate)})\n`;
+      message += `• ${stopInfo}\n`;
+      message += `• Price (for all pax): ${f.price.total} ${f.price.currency}\n\n`;
+    });
+
+    navigator.clipboard.writeText(message)
+      .then(() => alert("Copied to clipboard!"))
+      .catch(err => {
+        console.error("Clipboard copy failed", err);
+        alert("❌ Copy failed, please try manually.");
+      });
+  });
 });
 
 
-  // Initialize new tabs safely
-  if (typeof initLocalTabs === "function") {
-    initLocalTabs(tabsClone);
-  }
+document.addEventListener("DOMContentLoaded", () => {
+  const selectAllBtn = document.getElementById("select-all-flights");
+  if (!selectAllBtn) return;
 
-  // Activate first tab by default
-   const firstTab = tabsClone.querySelector(".tab-btn");
-  if (firstTab) firstTab.click();
-} 
-} // closes renderFlightRecommendation
+  selectAllBtn.addEventListener("click", () => {
+    const allFlightCards = document.querySelectorAll("[data-flight]");
+    if (!allFlightCards.length) {
+      alert("No flights available to select.");
+      return;
+    }
+
+    window.appState.selectedFlights = [];
+
+    allFlightCards.forEach(card => {
+      try {
+        const flight = JSON.parse(card.dataset.flight);
+        window.appState.selectedFlights.push(flight);
+
+        // highlight card visually if you want
+        card.classList.add("ring-2", "ring-blue-500");
+      } catch (e) {
+        console.warn("Invalid flight object", e);
+      }
+    });
+
+    updateSelectionSummary();
+  });
+});
 
 
 
@@ -1205,6 +1513,8 @@ function getBackendDates(flightData) {
             html += `</div>`;
             return html;
         }
+
+
 
         // Enhanced flight card with detailed date information
         function renderFlightCard(flight, requestedDate, index, segmentNumber) {
@@ -1515,22 +1825,38 @@ async function handleUserInput() {
     console.error('Agent communication failed:', error);
     const errorMessage = `I encountered an issue while processing your request. Please try again. (Error: ${error.message})`;
     await saveMessage(errorMessage, 'agent', 'text', null);
-  } finally {
+} finally {
     showLoading(false);
     elements.sendBtn.disabled = false;
-    elements.userInput.focus();
-  }
+
+    // ✅ Prevent autofocus if clipboard copy triggered
+    if (!window.__block_auto_focus) {
+      elements.userInput.focus();
+    }
+
+    // Reset flag after send cycle
+    window.__block_auto_focus = false;
+}
+
 }
 
 
+
+
+
         // Event Listeners
-        document.querySelectorAll('.quick-action').forEach(btn => {
-            btn.addEventListener('click', function() {
-                const query = this.getAttribute('data-query') || this.textContent;
-                elements.userInput.value = query;
-                elements.userInput.focus();
-            });
-        });
+document.querySelectorAll('.quick-action').forEach(btn => {
+    btn.addEventListener('click', function() {
+
+        // ❗ Skip for Copy Selected Flights button
+        if (this.id === "multi-copy-btn") return;
+
+        const query = this.getAttribute('data-query') || this.textContent;
+        elements.userInput.value = query;
+        elements.userInput.focus();
+    });
+});
+
 
         elements.userInput.addEventListener('keypress', (e) => {
             if (e.key === 'Enter' && !elements.sendBtn.disabled) {
@@ -1540,40 +1866,24 @@ async function handleUserInput() {
 
         elements.sendBtn.addEventListener('click', handleUserInput);
 
-        elements.multiCopyBtn.addEventListener('click', () => {
-            if (window.appState.selectedFlights.length === 0) return;
-            
-            let copyText = "=== SELECTED FLIGHTS ===\n\n";
-            window.appState.selectedFlights.forEach((flight, index) => {
-                copyText += `FLIGHT ${index + 1}:\n`;
-                copyText += `• ${flight.airline} ${flight.flightNumber}\n`;
-                copyText += `• Price: ${flight.price}\n\n`;
-            });
-            
-            navigator.clipboard.writeText(copyText).then(() => {
-                const originalText = elements.multiCopyBtn.textContent;
-                elements.multiCopyBtn.textContent = '✅ Copied!';
-                elements.multiCopyBtn.style.background = '#059669';
-                
-                setTimeout(() => {
-                    elements.multiCopyBtn.textContent = originalText;
-                    elements.multiCopyBtn.style.background = '';
-                }, 2000);
-            });
-        });
 
-        elements.clearBtn.addEventListener('click', () => {
-            window.appState.selectedFlights = [];
-            document.querySelectorAll('.select-flight').forEach(btn => {
-                btn.textContent = 'Select Flight';
-                btn.classList.remove('selected');
-            });
-            document.querySelectorAll('.compact-flight-card').forEach(card => {
-                card.classList.remove('selected');
-            });
-            updateSelectionUI();
-            showSuccess('Selection cleared');
-        });
+// 🔥 GLOBAL FIX: Prevent auto-typing into input when clicking copy button
+document.addEventListener("click", (e) => {
+    const copyBtn = e.target.closest("#multi-copy-btn");
+
+    if (copyBtn) {
+        const input = document.getElementById("user-input");
+        if (input) {
+            input.blur();           // remove focus
+            input.setSelectionRange(0, 0); // collapse cursor
+        }
+    }
+});
+document.getElementById("user-input")?.addEventListener("paste", (e) => {
+    const fromCopyBtn = document.activeElement.id === "multi-copy-btn";
+    if (fromCopyBtn) e.preventDefault();
+});
+
 
         elements.confirmBtn.addEventListener('click', () => {
             if (window.appState.selectedFlights.length === 0) return;
@@ -1597,7 +1907,7 @@ async function handleUserInput() {
         // Global handler
         window.handleMenuSelection = async function(optionId) {
             try {
-                const response = await fetch(CONFIG.BACKEND_URL.replace('/api/search', '/api/flow'), {
+                const response = await fetch('http://localhost:5000/api/flow', {
                     method: 'POST',
                     headers: { 
                         'Content-Type': 'application/json',
@@ -1662,12 +1972,6 @@ userInput.addEventListener("keydown", (e) => {
     sendBtn.click();
   }
 });
-
-
-
-
-
-
     </script>
 </body>
 </html>
