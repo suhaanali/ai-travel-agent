@@ -453,16 +453,86 @@ body {
   <!-- 🌍 Main Container -->
   <div class="fixed inset-0 flex flex-col bg-white overflow-hidden">
 
-    <!-- 🔹 Header -->
-    <header class="bg-gradient-to-r from-[#0B2C5E] to-[#B2924C] text-white flex items-center space-x-3 px-4 py-3 shadow-md z-10 w-full">
-      <div class="bg-white p-1.5 rounded-xl shadow-md flex items-center justify-center border border-yellow-500/40">
-        <img src="static/Logo.jpg" alt="Logo" class="w-6 h-6 sm:w-8 sm:h-8 object-contain">
+<!-- 🔹 Header -->
+<header class="bg-gradient-to-r from-[#0B2C5E] to-[#B2924C] text-white flex items-center justify-between px-4 py-3 shadow-md z-10 w-full">
+
+  <!-- Left: Logo + Title -->
+  <div class="flex items-center space-x-3">
+    <div class="bg-white p-1.5 rounded-xl shadow-md flex items-center justify-center border border-yellow-500/40">
+      <img src="static/Logo.jpg" alt="Logo" class="w-6 h-6 sm:w-8 sm:h-8 object-contain">
+    </div>
+    <div>
+      <h1 class="font-semibold text-base sm:text-lg tracking-wide">AI Travel Agent</h1>
+      <p class="text-[10px] sm:text-xs opacity-90">Your intelligent travel companion</p>
+    </div>
+  </div>
+
+  <!-- Right: Floating Header Cart Button -->
+  <div id="cart-float-btn"
+       class="relative cursor-pointer select-none"
+       title="Selected Flights">
+
+      <div class="w-8 h-8 flex items-center justify-center bg-white/90 rounded-full shadow-md border border-yellow-500/40 text-black text-lg">
+        ✈️
       </div>
-      <div>
-        <h1 class="font-semibold text-base sm:text-lg tracking-wide">AI Travel Agent</h1>
-        <p class="text-[10px] sm:text-xs opacity-90">Your intelligent travel companion</p>
-      </div>
-    </header>
+
+      <!-- Notification badge -->
+      <span id="cart-count"
+            class="absolute -top-1 -right-1 bg-red-600 text-white text-[10px] px-1.5 py-[1px] rounded-full hidden">
+        0
+      </span>
+  </div>
+</header>
+
+
+
+<!-- 🛒 Floating Cart Panel -->
+<div id="cart-panel"
+     class="fixed top-20 right-3 w-72 bg-white rounded-xl shadow-xl border border-gray-200 p-4 z-50 hidden transition-all duration-300 translate-x-5 opacity-0">
+
+    <div class="flex items-center justify-between mb-3">
+        <h3 class="text-base font-semibold text-gray-800">✈️ Selected Flights</h3>
+        <button id="cart-close-btn" class="text-red-500 text-sm font-semibold hover:underline">
+            Close
+        </button>
+    </div>
+
+    <!-- Cart items dynamically added here -->
+    <div id="cart-items" class="space-y-3 max-h-80 overflow-y-auto">
+        <p class="text-gray-500 text-sm">No flights selected yet.</p>
+    </div>
+</div>
+
+
+
+
+<!-- 📌 Cart Toggle Script -->
+<script>
+  const cartBtn = document.getElementById("cart-float-btn");
+  const cartPanel = document.getElementById("cart-panel");
+  const cartClose = document.getElementById("cart-close-btn");
+
+  function openCart() {
+    cartPanel.classList.remove("hidden");
+    setTimeout(() => {
+      cartPanel.classList.remove("translate-x-5", "opacity-0");
+      cartPanel.classList.add("translate-x-0", "opacity-100");
+    }, 10);
+  }
+
+  function closeCart() {
+    cartPanel.classList.add("translate-x-5", "opacity-0");
+    cartPanel.classList.remove("translate-x-0", "opacity-100");
+    setTimeout(() => {
+      cartPanel.classList.add("hidden");
+    }, 250);
+  }
+
+  cartBtn.addEventListener("click", openCart);
+  cartClose.addEventListener("click", closeCart);
+</script>
+
+
 
     <!-- 💬 Chat Area -->
     <main id="chat-history" class="flex-1 overflow-y-auto bg-gray-50 px-3 py-4">
@@ -497,33 +567,7 @@ body {
 
     <!-- ✍️ Input Section -->
     <footer class="bg-white border-t border-gray-200 p-3 space-y-3 w-full">
-      <!-- Flight Summary -->
-      <div id="selected-flight-summary" class="multi-city-header hidden">
-        <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
-          <div class="flex items-center space-x-3">
-            <div class="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center shadow-sm">
-              <span class="text-blue-600 text-xs">✈️</span>
-            </div>
-            <div>
-              <h4 class="font-semibold text-blue-900 text-sm" id="selected-flight-text">No flights selected</h4>
-              <p class="text-xs text-blue-700">Select flights to compare or book</p>
-            </div>
-          </div>
-          <div class="flex items-center space-x-2">
-            <button id="confirm-selection-btn" class="select-flight text-xs hidden">
-              Confirm Selection
-            </button>
-
-          </div>
-        </div>
-      </div>
-
-      <!-- Copy Button -->
-      <div id="multi-copy-container" class="hidden justify-center mt-3">
-        <button id="multi-copy-btn" class="quick-action bg-gray-600 text-white">
-          Copy 0 Selected Flights
-        </button>
-      </div>
+      
 
       <!-- Input Bar -->
       <div class="flex gap-2 items-end">
@@ -1142,73 +1186,89 @@ segments.forEach((segment, index) => {
   tabDiv.className = "tab-content p-4 hidden";
 
   const offers = segment.offers || [];
-  const offersHTML = offers
-    .map(
-      offer => `
+const offersHTML = offers
+  .map(
+    offer => `
       <div class="flight-card border rounded-lg p-2 mb-2 bg-white shadow-sm hover:shadow transition text-[13px]
                   w-full sm:w-[98%] mx-auto cursor-pointer"
            data-flight='${JSON.stringify(offer)}'>
+
+        <!-- Airline + Price -->
         <div class="flex items-center justify-between">
           <div class="flex items-center space-x-2">
             <img
-              src="${
-                offer.logoUrl ||
-                `https://content.airhex.com/content/logos/airlines_${offer.carrierCode}_100_100_s.png`
-              }"
+              src="${offer.logoUrl || `https://content.airhex.com/content/logos/airlines_${offer.carrierCode}_100_100_s.png`}"
               alt="${offer.carrierName || "Airline"} logo"
               class="w-6 h-6 object-contain rounded bg-gray-50"
               onerror="this.style.display='none'">
             <div class="text-gray-800">
-              <div class="font-semibold text-[13px] leading-tight">${
-                offer.carrierName || ""
-              }</div>
-              <div class="text-[11px] text-gray-500 tracking-tight mt-[1px]">${
-                offer.flightNumber || ""
-              }</div>
+              <div class="font-semibold text-[13px] leading-tight">
+                ${offer.carrierName || ""}
+              </div>
+              <div class="text-[11px] text-gray-500 tracking-tight mt-[1px]">
+                ${offer.flightNumber || ""}
+              </div>
             </div>
           </div>
+
           <div class="text-right text-green-600 font-bold text-[14px]">
             ${offer.price?.total || ""} ${offer.price?.currency || ""}
           </div>
         </div>
 
+        <!-- Timing Row -->
         <div class="flex justify-between mt-2 text-gray-700 text-[12px]">
           <div>
-            <p><span class="font-medium">${
-              offer.departureTime || ""
-            }</span> Depart</p>
-            <p class="text-gray-500 text-[11px]">${offer.departureDate ||
-              ""}</p>
+            <p><span class="font-medium">${offer.departureTime || ""}</span> Depart</p>
+            <p class="text-gray-500 text-[11px]">${offer.departureDate || ""}</p>
             <p class="text-gray-500">${offer.origin || ""}</p>
           </div>
 
           <div class="text-center">
             <p>✈️ ${offer.flightDuration || ""}</p>
-            <p class="${
-              offer.stops > 0 ? "text-orange-600" : "text-green-600"
-            }">
+            <p class="${offer.stops > 0 ? "text-orange-600" : "text-green-600"}">
               ${
                 offer.stops > 0
-                  ? `${offer.stops} stop${
-                      offer.stops > 1 ? "s" : ""
-                    } via ${offer.via || ""}`
+                  ? `${offer.stops} stop${offer.stops > 1 ? "s" : ""} via ${offer.via || ""}`
                   : "Non-stop"
               }
             </p>
           </div>
 
           <div class="text-right">
-            <p><span class="font-medium">${
-              offer.arrivalTime || ""
-            }</span> Arrive</p>
-            <p class="text-gray-500 text-[11px]">${offer.arrivalDate ||
-              ""}</p>
+            <p><span class="font-medium">${offer.arrivalTime || ""}</span> Arrive</p>
+            <p class="text-gray-500 text-[11px]">${offer.arrivalDate || ""}</p>
             <p class="text-gray-500">${offer.destination || ""}</p>
           </div>
         </div>
+
+        <!-- Fare Breakdown + Baggage -->
+        <div class="mt-1 pt-1 text-[11px] text-gray-500 border-t">
+          <span>${offer.baggage || "—"} • ${offer.cabin || "Economy"}</span>
+
+          <div class="fare-breakdown text-[10px] text-gray-600 mt-1 ml-1 leading-tight flex flex-wrap items-center">
+            ${
+              [
+                offer.fare_breakdown?.adults?.count > 0
+                  ? `👨‍💼 ${offer.fare_breakdown.adults.count}×Adult = ${offer.fare_breakdown.adults.total} ${offer.fare_breakdown.currency}`
+                  : "",
+                offer.fare_breakdown?.children?.count > 0
+                  ? `🧒 ${offer.fare_breakdown.children.count}×Child = ${offer.fare_breakdown.children.total} ${offer.fare_breakdown.currency}`
+                  : "",
+                offer.fare_breakdown?.infants?.count > 0
+                  ? `👶 ${offer.fare_breakdown.infants.count}×Infant = ${offer.fare_breakdown.infants.total} ${offer.fare_breakdown.currency}`
+                  : ""
+              ]
+                .filter(Boolean)
+                .join(" • ")
+            }
+          </div>
+        </div>
+
       </div>`
-    )
-    .join("");
+  )
+  .join("");
+
 
   tabDiv.innerHTML =
     offersHTML ||
@@ -1292,57 +1352,113 @@ function toggleSelection(flight, card) {
 
 
 
-
-
 function updateSelectionSummary() {
-  const selected = window.appState.selectedFlights || [];
-  const summary = document.getElementById("selected-flight-summary");
-  const text = document.getElementById("selected-flight-text");
-  const copyBtn = document.getElementById("multi-copy-btn");
-  const container = document.getElementById("multi-copy-container");
+    const count = window.appState.selectedFlights.length;
+    const badge = document.getElementById("cart-count");
+    const list = document.getElementById("cart-items");
 
-  if (selected.length > 0) {
-    // Sort flights by date to ensure grouping and order
-    const sorted = selected.slice().sort((a, b) => new Date(a.departureDate) - new Date(b.departureDate));
+    // Update badge
+    badge.textContent = count > 0 ? count : "";
+    badge.style.display = count > 0 ? "flex" : "none";
 
-    // ✔️ Determine outbound direction using the first flight's origin
-    const firstOrigin = sorted[0].origin;
+    list.innerHTML = "";
 
-    // Build detailed summary lines
-    const summaryLines = sorted.map((f, i) => {
+    if (count === 0) {
+        list.innerHTML = `<p class="text-gray-500 text-sm">No flights selected.</p>`;
+        return;
+    }
 
-      // ✔️ Correct label logic
-      const label = f.origin === firstOrigin ? "Outbound" : "Inbound";
+    window.appState.selectedFlights.forEach((f, idx) => {
+        const card = document.createElement("div");
+        card.className =
+            "p-3 mb-3 border rounded-lg bg-white shadow-sm text-[12px] leading-tight";
 
-      const totalPrice =
-        f.price?.total && f.price?.currency
-          ? `${f.price.total} ${f.price.currency}`
-          : "N/A";
+        // Fare breakdown
+        const fb = f.fare_breakdown || {};
+        const fbLines = [];
 
-      const depDate = f.departureDate ? formatDate(f.departureDate) : "--";
-      const arrDate = f.arrivalDate ? formatDate(f.arrivalDate) : "--";
+        if (fb.adults?.count) {
+            fbLines.push(`🧑‍💼 ${fb.adults.count}×Adult = ${fb.adults.total} AED`);
+        }
+        if (fb.children?.count) {
+            fbLines.push(`🧒 ${fb.children.count}×Child = ${fb.children.total} AED`);
+        }
+        if (fb.infants?.count) {
+            fbLines.push(`👶 ${fb.infants.count}×Infant = ${fb.infants.total} AED`);
+        }
 
-      // Stop info
-      const stopInfo = f.stops > 0
-        ? `${f.stops} stop${f.stops > 1 ? "s" : ""} via ${f.via}`
-        : "Non-stop";
+        const fareHTML = fbLines
+            .map(line => `<div class="ml-1">${line}</div>`)
+            .join("");
 
-      return `${i + 1}) ${label}: ${f.origin} → ${f.destination} (${f.carrierName || "Airline"}), ` +
-             `DEP: ${f.departureTime || "--"} (${depDate}), ARR: ${f.arrivalTime || "--"} (${arrDate}), ` +
-             `${stopInfo}, Price (for all pax): ${totalPrice}`;
+        // Final HTML
+card.innerHTML = `
+    <!-- Airline Row -->
+    <div class="flex items-center gap-2 mb-2">
+        <img 
+            src="${f.logoUrl || `https://content.airhex.com/content/logos/airlines_${f.carrierCode}_100_100_s.png`}"
+            class="w-6 h-6 object-contain bg-gray-50 rounded"
+            onerror="this.style.display='none'"
+        >
+        <div class="text-[12px]">
+            <div class="font-semibold">${f.carrierName || "Airline"}</div>
+            <div class="text-[11px] text-gray-500">${f.flightNumber || ""}</div>
+        </div>
+    </div>
+
+    <!-- Times + Dates -->
+    <div class="flex justify-between items-start text-[12px] mt-1">
+        
+        <!-- Depart -->
+        <div class="text-left">
+            <div class="font-semibold">${f.departureTime}</div>
+            <div class="text-gray-600 text-[11px] mt-[1px]">
+                ${f.departureDate}
+            </div>
+            <div class="text-[11px] text-gray-500">${f.origin}</div>
+        </div>
+
+        <!-- Arrow -->
+        <div class="text-gray-400 mt-1">→</div>
+
+        <!-- Arrive -->
+        <div class="text-right">
+            <div class="font-semibold">${f.arrivalTime}</div>
+            <div class="text-gray-600 text-[11px] mt-[1px]">
+                ${f.arrivalDate}
+            </div>
+            <div class="text-[11px] text-gray-500">${f.destination}</div>
+        </div>
+    </div>
+
+    <!-- Baggage + Cabin -->
+    <div class="flex justify-between text-[11px] mt-2">
+        <div>🛄 ${f.baggage || "25 KG"}</div>
+        <div class="flex items-center">
+            <span class="text-[10px] mr-1">◎</span>
+            ${f.cabin || "ECONOMY"}
+        </div>
+    </div>
+
+    <!-- Fare Breakdown -->
+    <div class="mt-2 text-[11px] leading-tight">
+        ${fbLines
+          .map(line => `<div class="flex items-center gap-1 ml-1">${line}</div>`)
+          .join("")}
+    </div>
+
+    <!-- Price -->
+    <div class="text-green-700 font-bold text-right text-[15px] mt-2">
+        ${f.price?.total} ${f.price?.currency}
+    </div>
+`;
+
+
+        list.appendChild(card);
     });
-
-    // Update footer HTML
-    summary.classList.remove("hidden");
-    container.classList.remove("hidden");
-    text.innerHTML = summaryLines.join("<br>");
-    copyBtn.textContent = `Copy ${selected.length} Selected Flight${selected.length > 1 ? "s" : ""}`;
-  } else {
-    summary.classList.add("hidden");
-    container.classList.add("hidden");
-    text.innerHTML = "";
-  }
 }
+
+
 
 
 
@@ -1711,20 +1827,49 @@ function getBackendDates(flightData) {
         }
 
         function updateSelectionUI() {
-            const count = window.appState.selectedFlights.length;
-            
-            if (count > 0) {
-                elements.selectedSummary.classList.remove('hidden');
-                elements.selectedText.textContent = `✈️ ${count} Flight${count > 1 ? 's' : ''} Selected`;
-                elements.confirmBtn.classList.remove('hidden');
-                elements.multiCopyContainer.classList.remove('hidden');
-                elements.multiCopyBtn.textContent = `Copy ${count} Selected Flight${count > 1 ? 's' : ''}`;
-            } else {
-                elements.selectedSummary.classList.add('hidden');
-                elements.confirmBtn.classList.add('hidden');
-                elements.multiCopyContainer.classList.add('hidden');
-            }
-        }
+    const count = window.appState.selectedFlights.length;
+
+    // 🛑 Safely fetch elements — may return null
+    const summary = elements.selectedSummary;
+    const text = elements.selectedText;
+    const confirmBtn = elements.confirmBtn;
+    const copyContainer = elements.multiCopyContainer;
+    const copyBtn = elements.multiCopyBtn;
+
+    // 🧨 If UI elements do NOT exist anymore — only update cart and EXIT
+    if (!summary || !text || !confirmBtn || !copyContainer || !copyBtn) {
+        updateCartCount(count);
+        return;
+    }
+
+    // 🟢 Older UI still present → update normally
+    if (count > 0) {
+        summary.classList.remove('hidden');
+        text.textContent = `✈️ ${count} Flight${count > 1 ? 's' : ''} Selected`;
+        confirmBtn.classList.remove('hidden');
+        copyContainer.classList.remove('hidden');
+        copyBtn.textContent = `Copy ${count} Selected Flight${count > 1 ? 's' : ''}`;
+    } else {
+        summary.classList.add('hidden');
+        confirmBtn.classList.add('hidden');
+        copyContainer.classList.add('hidden');
+    }
+
+    updateCartCount(count);
+}
+// 🔵 Updates the cart badge count safely
+function updateCartCount(count) {
+    const cartCountEl = document.getElementById("cart-count");
+    if (!cartCountEl) return;    // Prevent crash if icon not loaded
+
+    if (count > 0) {
+        cartCountEl.textContent = count;
+        cartCountEl.classList.remove("hidden");
+    } else {
+        cartCountEl.classList.add("hidden");
+    }
+}
+
 
         // API Communication
         async function callGenerativeAgent(query) {
@@ -1866,62 +2011,66 @@ document.querySelectorAll('.quick-action').forEach(btn => {
         elements.sendBtn.addEventListener('click', handleUserInput);
 
 
-// 🔥 GLOBAL FIX: Prevent auto-typing into input when clicking copy button
+// 🔥 FIX: Prevent auto-writing into the input when clicking copy buttons
 document.addEventListener("click", (e) => {
     const copyBtn = e.target.closest("#multi-copy-btn");
 
     if (copyBtn) {
         const input = document.getElementById("user-input");
         if (input) {
-            input.blur();           // remove focus
-            input.setSelectionRange(0, 0); // collapse cursor
+            input.blur();
+            input.setSelectionRange(0, 0);
         }
     }
 });
-document.getElementById("user-input")?.addEventListener("paste", (e) => {
-    const fromCopyBtn = document.activeElement.id === "multi-copy-btn";
-    if (fromCopyBtn) e.preventDefault();
+
+// FIX: Remove paste restrictions because multi-copy-btn no longer exists
+document.getElementById("user-input")?.addEventListener("paste", () => {});
+
+
+// ❌ OLD BUTTON REMOVED — DO NOT ATTACH LISTENERS
+// elements.confirmBtn DOES NOT EXIST ANYMORE
+// So we delete this whole block
+// ----------------------------------------------------
+// (REMOVED)
+
+
+// ✅ INITIALIZE SYSTEM SAFELY
+document.addEventListener('DOMContentLoaded', function () {
+    try {
+        initFirebaseAndAuth().catch(console.error);
+    } catch (e) {
+        console.warn("Firebase init skipped:", e);
+    }
+
+    const input = document.getElementById("user-input");
+    if (input) input.focus();
+
+    console.log("AI Travel Agent initialized successfully");
 });
 
 
-        elements.confirmBtn.addEventListener('click', () => {
-            if (window.appState.selectedFlights.length === 0) return;
-            
-            const flightsList = window.appState.selectedFlights.map((f, i) => 
-                `${i + 1}. ${f.airline} ${f.flightNumber} - ${f.price}`
-            ).join('\n');
-            
-            const message = `I'd like to proceed with these flights:\n\n${flightsList}\n\nCan you help me with the booking?`;
-            elements.userInput.value = message;
-            handleUserInput();
+// ----------------------------------------------------
+// ⭐ GLOBAL MENU HANDLER (SAFE)
+// ----------------------------------------------------
+window.handleMenuSelection = async function (optionId) {
+    try {
+        const response = await fetch("http://localhost:5000/api/flow", {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json",
+                "X-Session-Id": window.appState.currentSessionId
+            },
+            body: JSON.stringify({ selected: optionId })
         });
 
-        // Initialize
-        document.addEventListener('DOMContentLoaded', function() {
-            initFirebaseAndAuth().catch(console.error);
-            elements.userInput.focus();
-            console.log('AI Travel Agent initialized successfully');
-        });
-
-        // Global handler
-        window.handleMenuSelection = async function(optionId) {
-            try {
-                const response = await fetch('http://localhost:5000/api/flow', {
-                    method: 'POST',
-                    headers: { 
-                        'Content-Type': 'application/json',
-                        'X-Session-Id': window.appState.currentSessionId
-                    },
-                    body: JSON.stringify({ selected: optionId })
-                });
-
-                const result = await response.json();
-                await saveMessage(result.text, 'agent', result.type, result.data);
-            } catch (error) {
-                console.error('Menu selection failed:', error);
-                showError('Sorry, something went wrong. Please try again.');
-            }
-        };
+        const result = await response.json();
+        await saveMessage(result.text, "agent", result.type, result.data);
+    } catch (error) {
+        console.error("Menu selection failed:", error);
+        showError("Sorry, something went wrong. Please try again.");
+    }
+};
 
 function initLocalTabs(tabContainer) {
   const buttons = tabContainer.querySelectorAll('.tab-btn');
@@ -1971,6 +2120,38 @@ userInput.addEventListener("keydown", (e) => {
     sendBtn.click();
   }
 });
+
+
+
+// Toggle Cart Panel
+document.getElementById("cart-float-btn").addEventListener("click", () => {
+  const panel = document.getElementById("cart-panel");
+  panel.style.display = panel.style.display === "block" ? "none" : "block";
+});
+
+// Update airplane badge count
+function updateCartBadge() {
+  const badge = document.getElementById("cart-count");
+  const count = window.appState.selectedFlights.length;
+
+  if (count > 0) {
+    badge.textContent = count;
+    badge.classList.remove("hidden");
+  } else {
+    badge.classList.add("hidden");
+  }
+}
+
+// Hook into selection summary
+const oldUpdate = updateSelectionSummary;
+updateSelectionSummary = function() {
+  oldUpdate();
+  updateCartBadge();
+};
+
+
+
+
     </script>
 </body>
 </html>
