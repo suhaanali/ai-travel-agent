@@ -1006,7 +1006,7 @@ function renderFlightRecommendation(flightData, headerText) {
       .map(
         offer => `
           <div class="flight-card ... "
-     data-id="${offer.flightNumber}_${offer.departureDate}_${offer.departureTime}"
+     data-id="${offer.flightNumber}_${offer.departureDate}_${offer.departureTime}_${offer.price?.total}_${offer.cabin || ''}"
      data-flight='${JSON.stringify(offer)}'>
             <div class="flex items-center justify-between">
               <div class="flex items-center space-x-2">
@@ -1201,7 +1201,7 @@ const offersHTML = offers
   .map(
     offer => `
 <div class="flight-card ... "
-     data-id="${offer.flightNumber}_${offer.departureDate}_${offer.departureTime}"
+     data-id="${offer.flightNumber}_${offer.departureDate}_${offer.departureTime}_${offer.price?.total}_${offer.cabin || ''}"
      data-flight='${JSON.stringify(offer)}'>
 
 
