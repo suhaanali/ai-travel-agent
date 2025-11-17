@@ -1199,11 +1199,10 @@ segments.forEach((segment, index) => {
   const offers = segment.offers || [];
 const offersHTML = offers
   .map(
-    offer => `
-<div class="flight-card ... "
-     data-id="${offer.flightNumber}_${offer.departureDate}_${offer.departureTime}_${offer.price?.total}_${offer.cabin || ''}"
+    (offer, index) => `
+<div class="flight-card"
+     data-id="mc_${segNum}_${index}"
      data-flight='${JSON.stringify(offer)}'>
-
 
         <!-- Airline + Price -->
         <div class="flex items-center justify-between">
@@ -1227,7 +1226,6 @@ const offersHTML = offers
             ${offer.price?.total || ""} ${offer.price?.currency || ""}
           </div>
         </div>
-
 
         <!-- Timing Row -->
         <div class="flex justify-between mt-2 text-gray-700 text-[12px]">
@@ -1281,6 +1279,7 @@ const offersHTML = offers
       </div>`
   )
   .join("");
+
 
 
   tabDiv.innerHTML =
