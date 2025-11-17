@@ -1002,32 +1002,32 @@ function renderFlightRecommendation(flightData, headerText) {
     const oneWayTab = tabsClone.querySelector("#tab1");
     const offers = flightData.offers || flightData.flights?.[0]?.offers || [];
 
-    const offersHTML = offers
-      .map(
-        offer => `
-          <div class="flight-card ... "
-     data-id="${offer.flightNumber}_${offer.departureDate}_${offer.departureTime}_${offer.price?.total}_${offer.cabin || ''}"
-     data-flight='${JSON.stringify(offer)}'>
-            <div class="flex items-center justify-between">
-              <div class="flex items-center space-x-2">
-                <img 
-                  src="${offer.logoUrl || `https://content.airhex.com/content/logos/airlines_${offer.carrierCode}_100_100_s.png`}" 
-                  alt="${offer.carrierName || 'Airline'} logo"
-                  class="w-6 h-6 object-contain rounded bg-gray-50"
-                  onerror="this.style.display='none'">
-                <div class="text-gray-800">
-                  <div class="font-semibold text-[13px] leading-tight">
-                    ${offer.carrierName || ''}
-                  </div>
-                  <div class="text-[11px] text-gray-500 tracking-tight mt-[1px]">
-                    ${offer.flightNumber || ''}
-                  </div>
-                </div>
+        const offersHTML = offers
+  .map(
+    (offer, index) => `
+      <div class="flight-card"
+           data-id="ow_${index}"
+           data-flight='${JSON.stringify(offer)}'>
+        <div class="flex items-center justify-between">
+          <div class="flex items-center space-x-2">
+            <img 
+              src="${offer.logoUrl || `https://content.airhex.com/content/logos/airlines_${offer.carrierCode}_100_100_s.png`}" 
+              alt="${offer.carrierName || 'Airline'} logo"
+              class="w-6 h-6 object-contain rounded bg-gray-50"
+              onerror="this.style.display='none'">
+            <div class="text-gray-800">
+              <div class="font-semibold text-[13px] leading-tight">
+                ${offer.carrierName || ''}
               </div>
-              <div class="text-right text-green-600 font-bold text-[14px]">
-                ${offer.price?.total || ''} ${offer.price?.currency || ''}
+              <div class="text-[11px] text-gray-500 tracking-tight mt-[1px]">
+                ${offer.flightNumber || ''}
               </div>
             </div>
+          </div>
+          <div class="text-right text-green-600 font-bold text-[14px]">
+            ${offer.price?.total || ''} ${offer.price?.currency || ''}
+          </div>
+        </div>
 
             <div class="flex justify-between mt-2 text-gray-700 text-[12px]">
               <div>
