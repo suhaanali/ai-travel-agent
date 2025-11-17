@@ -1368,6 +1368,7 @@ function toggleSelection(flight, card) {
         // REMOVE
         window.appState.selectedFlights.splice(existingIndex, 1);
         card.classList.remove("selected", "ring-2", "ring-blue-500", "bg-blue-50");
+
     } else {
         // ADD
         window.appState.selectedFlights.push({ id, ...flight });
@@ -1376,9 +1377,6 @@ function toggleSelection(flight, card) {
 
     updateSelectionSummary();
 }
-
-
-
 
 
 function updateSelectionSummary() {
