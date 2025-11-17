@@ -499,18 +499,24 @@ body {
         </button>
     </div>
 
-    <!-- ⭐ Share Buttons -->
-    <div class="flex gap-2 mb-3">
-        <button id="copy-flights-btn"
-            class="bg-blue-600 text-white px-3 py-1 rounded text-xs shadow">
-            Copy All
-        </button>
+<!-- ⭐ Share + Book Buttons -->
+<div class="flex gap-2 mb-3">
+    <button id="copy-flights-btn"
+        class="bg-blue-600 text-white px-3 py-1 rounded text-xs shadow">
+        Copy All
+    </button>
 
-        <button id="share-whatsapp-btn"
-            class="bg-green-600 text-white px-3 py-1 rounded text-xs shadow">
-            WhatsApp
-        </button>
-    </div>
+    <button id="share-whatsapp-btn"
+        class="bg-green-600 text-white px-3 py-1 rounded text-xs shadow">
+        WhatsApp
+    </button>
+
+    <button id="book-flights-btn"
+        class="bg-red-600 text-white px-3 py-1 rounded text-xs shadow">
+        Book
+    </button>
+</div>
+
 
     <!-- Cart items dynamically added here -->
     <div id="cart-items" class="space-y-3 max-h-80 overflow-y-auto">
@@ -714,11 +720,13 @@ window.__block_auto_focus = false;
         };
 
         // Global state
-        window.appState = {
-            selectedFlights: [],
-            currentSessionId: 'session_' + Math.random().toString(36).substring(2, 15),
-            retryCount: 0
-        };
+       window.appState = {
+    selectedFlights: [],
+    finalBookingFlights: [],   // ⭐ NEW
+    currentSessionId: 'session_' + Math.random().toString(36).substring(2, 15),
+    retryCount: 0
+};
+
 
         // Firebase state
         let db = null;
@@ -735,6 +743,72 @@ function showLoading(show = true) {
     elements.sendBtn.disabled = false;
   }
 }
+function buildPassengerTemplate() {
+    const flights = window.appState.finalBookingFlights;
+    if (!flights.length) return "";
+
+    const fb = flights[0].fare_breakdown || {};
+    const adults = fb.adults?.count || 0;
+    const children = fb.children?.count || 0;
+    const infants = fb.infants?.count || 0;
+
+    let msg = "Please enter passenger details in the format below:\n\n";
+
+    if (adults > 0) {
+        msg += "🧑‍💼 *Adult Passengers*\n";
+        for (let i = 1; i <= adults; i++) {
+            msg += `${i}) Full Name:\n`;
+        }
+        msg += "\n";
+    }
+
+    if (children > 0) {
+        msg += "🧒 *Children*\n";
+        for (let i = 1; i <= children; i++) {
+            msg += `${i}) Full Name (Child):\n`;
+        }
+        msg += "\n";
+    }
+
+    if (infants > 0) {
+        msg += "👶 *Infants*\n";
+        for (let i = 1; i <= infants; i++) {
+            msg += `${i}) Full Name (Infant) + Adult they will sit with:\n`;
+        }
+        msg += "\n";
+    }
+
+    msg += "_Please reply with all names in this exact format._";
+
+    return msg;
+}
+document.addEventListener("click", async (e) => {
+    if (e.target.id === "book-flights-btn") {
+
+        if (!window.appState.selectedFlights.length) {
+            alert("No flights selected to book.");
+            return;
+        }
+
+        // 1️⃣ Save final booking flights
+        window.appState.finalBookingFlights =
+            JSON.parse(JSON.stringify(window.appState.selectedFlights));
+
+        // 2️⃣ Close panel
+        const panel = document.getElementById("cart-panel");
+        panel.style.display = "none";
+
+        // 3️⃣ Ask for passenger names
+        const template = buildPassengerTemplate();
+
+        await saveMessage(
+            "Great! I'm ready to proceed with the booking.\n\n" + template,
+            "agent"
+        );
+
+        document.getElementById("user-input").focus();
+    }
+});
 
 
 function addSelectAllToggle(container) {
