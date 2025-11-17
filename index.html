@@ -499,11 +499,25 @@ body {
         </button>
     </div>
 
+    <!-- ⭐ Share Buttons -->
+    <div class="flex gap-2 mb-3">
+        <button id="copy-flights-btn"
+            class="bg-blue-600 text-white px-3 py-1 rounded text-xs shadow">
+            Copy All
+        </button>
+
+        <button id="share-whatsapp-btn"
+            class="bg-green-600 text-white px-3 py-1 rounded text-xs shadow">
+            WhatsApp
+        </button>
+    </div>
+
     <!-- Cart items dynamically added here -->
     <div id="cart-items" class="space-y-3 max-h-80 overflow-y-auto">
         <p class="text-gray-500 text-sm">No flights selected yet.</p>
     </div>
 </div>
+
 
 
 
@@ -773,8 +787,57 @@ function addSelectAllToggle(container) {
 }
 
 
+function buildShareMessage() {
+    const flights = window.appState.selectedFlights;
+    if (!flights.length) return "No flights selected.";
+
+    let msg = "✈️ Selected Flights\n\n";
+
+    flights.forEach(f => {
+        msg += "----------------------------------\n";
+        msg += `${f.carrierName || ""} — ${f.flightNumber || ""}\n`;
+        msg += `${f.origin} → ${f.destination}\n`;
+        msg += `${f.departureDate}\n\n`;
+
+        msg += `Depart: ${f.departureTime}\n`;
+        msg += `Arrive: ${f.arrivalTime}`;
+        if (f.arrivalDate && f.arrivalDate !== f.departureDate) {
+            msg += ` (${f.arrivalDate})`;
+        }
+        msg += `\n`;
+
+        msg += `Baggage: ${f.baggage || "—"}\n`;
+        msg += `Cabin: ${f.cabin || "ECONOMY"}\n\n`;
+
+        const fb = f.fare_breakdown || {};
+        if (fb.adults?.count)     msg += `${fb.adults.count}×Adult = ${fb.adults.total} ${fb.currency}\n`;
+        if (fb.children?.count)   msg += `${fb.children.count}×Child = ${fb.children.total} ${fb.currency}\n`;
+        if (fb.infants?.count)    msg += `${fb.infants.count}×Infant = ${fb.infants.total} ${fb.currency}\n`;
+
+        msg += `\nTotal: ${f.price?.total} ${f.price?.currency}\n\n`;
+    });
+
+    return msg.trim();
+}
 
 
+// 📋 COPY TO CLIPBOARD
+document.addEventListener("click", e => {
+    if (e.target.id === "copy-flights-btn") {
+        const msg = buildShareMessage();
+        navigator.clipboard.writeText(msg)
+            .then(() => alert("Copied to clipboard!"));
+    }
+});
+
+// 💬 SHARE TO WHATSAPP
+document.addEventListener("click", e => {
+    if (e.target.id === "share-whatsapp-btn") {
+        const msg = encodeURIComponent(buildShareMessage());
+        const url = `https://wa.me/?text=${msg}`;
+        window.open(url, "_blank");
+    }
+});
 
 
 
