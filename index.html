@@ -532,8 +532,6 @@ body {
         Book
     </button>
 </div>
-
-
     <!-- Cart items dynamically added here -->
     <div id="cart-items" class="space-y-3 max-h-80 overflow-y-auto">
         <p class="text-gray-500 text-sm">No flights selected yet.</p>
@@ -1546,7 +1544,11 @@ function toggleSelection(flight, card) {
 
     updateSelectionSummary();
 }
-
+function applyMarkup(price, percent) {
+    percent = Number(percent);
+    if (!percent || percent === 0) return price;
+    return Math.round(price * (1 + percent / 100));
+}
 
 function updateSelectionSummary() {
     const count = window.appState.selectedFlights.length;
