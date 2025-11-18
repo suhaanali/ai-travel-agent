@@ -500,6 +500,22 @@ body {
     </div>
 
 <!-- ⭐ Share + Book Buttons -->
+   <div class="mb-3">
+    <label class="text-sm font-semibold text-gray-700">Markup:</label>
+    <select id="markup-select" class="border rounded px-2 py-1 text-sm ml-2">
+        <option value="0">0%</option>
+        <option value="1">1%</option>
+        <option value="2">2%</option>
+        <option value="3">3%</option>
+        <option value="4">4%</option>
+        <option value="5">5%</option>
+        <option value="6">6%</option>
+        <option value="7">7%</option>
+        <option value="8">8%</option>
+        <option value="9">9%</option>
+        <option value="10">10%</option>
+    </select>
+</div> 
 <div class="flex gap-2 mb-3">
     <button id="copy-flights-btn"
         class="bg-blue-600 text-white px-3 py-1 rounded text-xs shadow">
@@ -865,42 +881,48 @@ function buildShareMessage() {
     const flights = window.appState.selectedFlights;
     if (!flights.length) return "No flights selected.";
 
-    let msg = `✈️ *Selected Flights*\n\n`;
+    const markup = Number(document.getElementById("markup-select")?.value || 0);
 
-    flights.forEach((f, i) => {
-        msg += `━━━━━━━━━━━━━━━━━━\n`;
-        msg += `*${f.carrierName || ""}* — *${f.flightNumber || ""}*\n`;
-        msg += `📍 ${f.origin} ➝ ${f.destination}\n`;
-        msg += `📅 ${f.departureDate}\n\n`;
+    let msg = "✈️ Selected Flights\n\n";
 
-        msg += `⏰ *Depart:* ${f.departureTime}\n`;
-        msg += `⏰ *Arrive:* ${f.arrivalTime}`;
+    flights.forEach(f => {
+        msg += "----------------------------------\n";
+        msg += `${f.carrierName || ""} — ${f.flightNumber || ""}\n`;
+        msg += `${f.origin} → ${f.destination}\n`;
+        msg += `${f.departureDate}\n\n`;
+
+        msg += `Depart: ${f.departureTime}\n`;
+        msg += `Arrive: ${f.arrivalTime}`;
         if (f.arrivalDate && f.arrivalDate !== f.departureDate) {
             msg += ` (${f.arrivalDate})`;
         }
         msg += `\n`;
 
-        msg += `💼 *Baggage:* ${f.baggage || "—"}\n`;
-        msg += `💺 *Cabin:* ${f.cabin || "ECONOMY"}\n\n`;
+        msg += `Baggage: ${f.baggage || "—"}\n`;
+        msg += `Cabin: ${f.cabin || "ECONOMY"}\n\n`;
 
-        // Fare breakdown
+        // 🔥 BREAKDOWN WITH MARKUP BUT WITHOUT “incl. 7%”
         const fb = f.fare_breakdown || {};
-        if (fb.adults?.count || fb.children?.count || fb.infants?.count) {
-            msg += `🧾 *Fare Breakdown:*\n`;
-            if (fb.adults?.count)
-                msg += `• ${fb.adults.count}×Adult = ${fb.adults.total} ${fb.currency}\n`;
-            if (fb.children?.count)
-                msg += `• ${fb.children.count}×Child = ${fb.children.total} ${fb.currency}\n`;
-            if (fb.infants?.count)
-                msg += `• ${fb.infants.count}×Infant = ${fb.infants.total} ${fb.currency}\n`;
-            msg += `\n`;
+
+        if (fb.adults?.count) {
+            const adultMarked = applyMarkup(fb.adults.total, markup);
+            msg += `${fb.adults.count}×Adult = ${adultMarked} ${fb.currency}\n`;
         }
 
-        msg += `💵 *Total:* ${f.price?.total} ${f.price?.currency}\n`;
-        msg += `━━━━━━━━━━━━━━━━━━\n\n`;
-    });
+        if (fb.children?.count) {
+            const childMarked = applyMarkup(fb.children.total, markup);
+            msg += `${fb.children.count}×Child = ${childMarked} ${fb.currency}\n`;
+        }
 
-    msg += `_Shared via AI Travel Agent_`;
+        if (fb.infants?.count) {
+            const infantMarked = applyMarkup(fb.infants.total, markup);
+            msg += `${fb.infants.count}×Infant = ${infantMarked} ${fb.currency}\n`;
+        }
+
+        // 🔥 TOTAL WITH MARKUP
+        const totalWithMarkup = applyMarkup(f.price.total, markup);
+        msg += `\nTotal: ${totalWithMarkup} ${f.price.currency}\n\n`;
+    });
 
     return msg.trim();
 }
@@ -1535,6 +1557,7 @@ function updateSelectionSummary() {
     badge.textContent = count > 0 ? count : "";
     badge.style.display = count > 0 ? "flex" : "none";
 
+    // Clear list
     list.innerHTML = "";
 
     if (count === 0) {
@@ -1542,96 +1565,98 @@ function updateSelectionSummary() {
         return;
     }
 
-    window.appState.selectedFlights.forEach((f, idx) => {
+    // 🔥 Get markup %
+    const markup = Number(document.getElementById("markup-select")?.value || 0);
+
+    window.appState.selectedFlights.forEach(f => {
+
+        // Fare breakdown
+        const fb = f.fare_breakdown || {};
+        const lines = [];
+
+        // 🔥 Apply markup to each breakdown block
+       if (fb.adults?.count) {
+    const markedAdult = applyMarkup(fb.adults.total, markup);
+    lines.push(`🧑‍💼 ${fb.adults.count}×Adult = ${markedAdult} ${fb.currency || "AED"}`);
+}
+
+if (fb.children?.count) {
+    const markedChild = applyMarkup(fb.children.total, markup);
+    lines.push(`🧒 ${fb.children.count}×Child = ${markedChild} ${fb.currency || "AED"}`);
+}
+
+if (fb.infants?.count) {
+    const markedInfant = applyMarkup(fb.infants.total, markup);
+    lines.push(`👶 ${fb.infants.count}×Infant = ${markedInfant} ${fb.currency || "AED"}`);
+}
+
+
+        const fareBreakdownHTML = lines
+            .map(line => `<div class="flex items-center gap-1 ml-1">${line}</div>`)
+            .join("");
+
+        // 🔥 Total with markup
+        const markedTotal = applyMarkup(f.price?.total, markup);
+
+        // Build card
         const card = document.createElement("div");
         card.className =
             "p-3 mb-3 border rounded-lg bg-white shadow-sm text-[12px] leading-tight";
 
-        // Fare breakdown
-        const fb = f.fare_breakdown || {};
-        const fbLines = [];
-
-        if (fb.adults?.count) {
-            fbLines.push(`🧑‍💼 ${fb.adults.count}×Adult = ${fb.adults.total} AED`);
-        }
-        if (fb.children?.count) {
-            fbLines.push(`🧒 ${fb.children.count}×Child = ${fb.children.total} AED`);
-        }
-        if (fb.infants?.count) {
-            fbLines.push(`👶 ${fb.infants.count}×Infant = ${fb.infants.total} AED`);
-        }
-
-        const fareHTML = fbLines
-            .map(line => `<div class="ml-1">${line}</div>`)
-            .join("");
-
-        // Final HTML
-card.innerHTML = `
-    <!-- Airline Row -->
-    <div class="flex items-center gap-2 mb-2">
-        <img 
-            src="${f.logoUrl || `https://content.airhex.com/content/logos/airlines_${f.carrierCode}_100_100_s.png`}"
-            class="w-6 h-6 object-contain bg-gray-50 rounded"
-            onerror="this.style.display='none'"
-        >
-        <div class="text-[12px]">
-            <div class="font-semibold">${f.carrierName || "Airline"}</div>
-            <div class="text-[11px] text-gray-500">${f.flightNumber || ""}</div>
-        </div>
-    </div>
-
-    <!-- Times + Dates -->
-    <div class="flex justify-between items-start text-[12px] mt-1">
-        
-        <!-- Depart -->
-        <div class="text-left">
-            <div class="font-semibold">${f.departureTime}</div>
-            <div class="text-gray-600 text-[11px] mt-[1px]">
-                ${f.departureDate}
+        card.innerHTML = `
+            <!-- Airline Row -->
+            <div class="flex items-center gap-2 mb-2">
+                <img 
+                    src="${f.logoUrl || `https://content.airhex.com/content/logos/airlines_${f.carrierCode}_100_100_s.png`}"
+                    class="w-6 h-6 object-contain bg-gray-50 rounded"
+                    onerror="this.style.display='none'"
+                >
+                <div class="text-[12px]">
+                    <div class="font-semibold">${f.carrierName || "Airline"}</div>
+                    <div class="text-[11px] text-gray-500">${f.flightNumber || ""}</div>
+                </div>
             </div>
-            <div class="text-[11px] text-gray-500">${f.origin}</div>
-        </div>
 
-        <!-- Arrow -->
-        <div class="text-gray-400 mt-1">→</div>
+            <!-- Times + Dates -->
+            <div class="flex justify-between items-start text-[12px] mt-1">
 
-        <!-- Arrive -->
-        <div class="text-right">
-            <div class="font-semibold">${f.arrivalTime}</div>
-            <div class="text-gray-600 text-[11px] mt-[1px]">
-                ${f.arrivalDate}
+                <div class="text-left">
+                    <div class="font-semibold">${f.departureTime || ""}</div>
+                    <div class="text-gray-600 text-[11px] mt-[1px]">${f.departureDate || ""}</div>
+                    <div class="text-[11px] text-gray-500">${f.origin || ""}</div>
+                </div>
+
+                <div class="text-gray-400 mt-1">→</div>
+
+                <div class="text-right">
+                    <div class="font-semibold">${f.arrivalTime || ""}</div>
+                    <div class="text-gray-600 text-[11px] mt-[1px]">${f.arrivalDate || ""}</div>
+                    <div class="text-[11px] text-gray-500">${f.destination || ""}</div>
+                </div>
             </div>
-            <div class="text-[11px] text-gray-500">${f.destination}</div>
-        </div>
-    </div>
 
-    <!-- Baggage + Cabin -->
-    <div class="flex justify-between text-[11px] mt-2">
-        <div>🛄 ${f.baggage || "25 KG"}</div>
-        <div class="flex items-center">
-            <span class="text-[10px] mr-1">◎</span>
-            ${f.cabin || "ECONOMY"}
-        </div>
-    </div>
+            <!-- Baggage + Cabin -->
+            <div class="flex justify-between text-[11px] mt-2">
+                <div>🛄 ${f.baggage || "—"}</div>
+                <div class="flex items-center">
+                    <span class="text-[10px] mr-1">◎</span>
+                    ${f.cabin || "ECONOMY"}
+                </div>
+            </div>
 
-    <!-- Fare Breakdown -->
-    <div class="mt-2 text-[11px] leading-tight">
-        ${fbLines
-          .map(line => `<div class="flex items-center gap-1 ml-1">${line}</div>`)
-          .join("")}
-    </div>
+            <!-- Fare Breakdown -->
+            ${fareBreakdownHTML ? `<div class="mt-2 text-[11px] leading-tight">${fareBreakdownHTML}</div>` : ""}
 
-    <!-- Price -->
-    <div class="text-green-700 font-bold text-right text-[15px] mt-2">
-        ${f.price?.total} ${f.price?.currency}
-    </div>
-`;
-
+            <!-- Price (Total with markup) -->
+            <div class="text-green-700 font-bold text-right text-[15px] mt-2">
+                ${markedTotal} ${f.price?.currency || ""}
+            </div>
+        `;
 
         list.appendChild(card);
     });
 }
-
+document.addEventListener("change", (e) => { if (e.target.id === "markup-select") { updateSelectionSummary(); } });
 
 
 
@@ -1660,10 +1685,8 @@ document.addEventListener("DOMContentLoaded", () => {
     event.preventDefault();
     event.stopPropagation();
 
-    // ❗ Tell system NOT to auto-focus after this
+    // prevent input focus
     window.__block_auto_focus = true;
-
-    // ❗ Blur input so text does NOT auto-insert
     if (userInput) userInput.blur();
 
     const selected = window.appState.selectedFlights || [];
@@ -1676,17 +1699,23 @@ document.addEventListener("DOMContentLoaded", () => {
       (a, b) => new Date(a.departureDate) - new Date(b.departureDate)
     );
 
+    // 🔥 GET MARKUP %
+    const markup = Number(document.getElementById("markup-select")?.value || 0);
+
     let message = "=== SELECTED FLIGHTS ===\n\n";
 
     sorted.forEach((f, i) => {
-      const firstOrigin = sorted[0].origin;
-const label = f.origin === firstOrigin ? "Outbound" : "Inbound";
 
+      const firstOrigin = sorted[0].origin;
+      const label = f.origin === firstOrigin ? "Outbound" : "Inbound";
 
       const stopInfo =
         f.stops > 0
           ? `${f.stops} stop${f.stops > 1 ? "s" : ""} via ${f.via}`
           : "Non-stop";
+
+      // 🔥 APPLY MARKUP TO TOTAL ONLY
+      const markedTotal = applyMarkup(f.price.total, markup);
 
       message += `FLIGHT ${i + 1}: ${label}\n`;
       message += `• ${f.carrierName || "Airline"} ${f.flightNumber || ""}\n`;
@@ -1694,12 +1723,12 @@ const label = f.origin === firstOrigin ? "Outbound" : "Inbound";
       message += `• Departure: ${f.departureTime} (${formatDate(f.departureDate)})\n`;
       message += `• Arrival: ${f.arrivalTime} (${formatDate(f.arrivalDate)})\n`;
       message += `• ${stopInfo}\n`;
-      message += `• Price (for all pax): ${f.price.total} ${f.price.currency}\n\n`;
+      message += `• Price (for all pax): ${markedTotal} ${f.price.currency}\n\n`;
     });
 
-   navigator.clipboard.writeText(message).catch(err => {
-  console.error("Clipboard copy failed", err);
-});
+    navigator.clipboard.writeText(message).catch(err => {
+      console.error("Clipboard copy failed", err);
+    });
   });
 });
 
