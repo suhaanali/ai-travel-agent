@@ -881,49 +881,52 @@ function buildShareMessage() {
 
     const markup = Number(document.getElementById("markup-select")?.value || 0);
 
-    let msg = "✈️ Selected Flights\n\n";
+    let msg = "✈️ *Your Flight Options*\n\n";
 
-    flights.forEach(f => {
+    flights.forEach((f, index) => {
+
+        const fb = f.fare_breakdown || {};
+        const currency = fb.currency || f.price.currency || "AED";
+
+        // Apply markup safely
+        const adultTotal  = fb.adults?.total   ? applyMarkup(fb.adults.total, markup)   : 0;
+        const childTotal  = fb.children?.total ? applyMarkup(fb.children.total, markup) : 0;
+        const infantTotal = fb.infants?.total  ? applyMarkup(fb.infants.total, markup)  : 0;
+        const totalPrice  = applyMarkup(f.price.total, markup);
+
         msg += "----------------------------------\n";
-        msg += `${f.carrierName || ""} — ${f.flightNumber || ""}\n`;
-        msg += `${f.origin} → ${f.destination}\n`;
-        msg += `${f.departureDate}\n\n`;
 
-        msg += `Depart: ${f.departureTime}\n`;
-        msg += `Arrive: ${f.arrivalTime}`;
+        msg += `🛫 *${index === 0 ? "Outbound Flight" : "Inbound Flight"}*\n`;
+        msg += `🏷️ Airline: ${f.carrierName || ""} (${f.flightNumber || ""})\n`;
+        msg += `🌍 Route: ${f.origin} → ${f.destination}\n`;
+        msg += `📅 Date: ${f.departureDate}\n`;
+        msg += `⏰ Dep: ${f.departureTime} — Arr: ${f.arrivalTime}`;
         if (f.arrivalDate && f.arrivalDate !== f.departureDate) {
             msg += ` (${f.arrivalDate})`;
         }
-        msg += `\n`;
+        msg += `\n\n`;
 
-        msg += `Baggage: ${f.baggage || "—"}\n`;
-        msg += `Cabin: ${f.cabin || "ECONOMY"}\n\n`;
+        msg += `💼 Baggage: ${f.baggage || "–"}\n`;
+        msg += `💺 Cabin: ${f.cabin || "ECONOMY"}\n\n`;
 
-        // 🔥 BREAKDOWN WITH MARKUP BUT WITHOUT “incl. 7%”
-        const fb = f.fare_breakdown || {};
+        msg += `👥 *Fare Breakdown:*\n`;
 
-        if (fb.adults?.count) {
-            const adultMarked = applyMarkup(fb.adults.total, markup);
-            msg += `${fb.adults.count}×Adult = ${adultMarked} ${fb.currency}\n`;
-        }
+        if (fb.adults?.count)
+            msg += `• Adult ×${fb.adults.count} = ${adultTotal} ${currency}\n`;
 
-        if (fb.children?.count) {
-            const childMarked = applyMarkup(fb.children.total, markup);
-            msg += `${fb.children.count}×Child = ${childMarked} ${fb.currency}\n`;
-        }
+        if (fb.children?.count)
+            msg += `• Child ×${fb.children.count} = ${childTotal} ${currency}\n`;
 
-        if (fb.infants?.count) {
-            const infantMarked = applyMarkup(fb.infants.total, markup);
-            msg += `${fb.infants.count}×Infant = ${infantMarked} ${fb.currency}\n`;
-        }
+        if (fb.infants?.count)
+            msg += `• Infant ×${fb.infants.count} = ${infantTotal} ${currency}\n`;
 
-        // 🔥 TOTAL WITH MARKUP
-        const totalWithMarkup = applyMarkup(f.price.total, markup);
-        msg += `\nTotal: ${totalWithMarkup} ${f.price.currency}\n\n`;
+        msg += `\n💰 *Total: ${totalPrice} ${currency}*\n`;
+        msg += "----------------------------------\n\n";
     });
 
     return msg.trim();
 }
+
 
 
 document.addEventListener("click", e => {
