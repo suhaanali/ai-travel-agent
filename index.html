@@ -880,52 +880,48 @@ function buildShareMessage() {
     if (!flights.length) return "No flights selected.";
 
     const markup = Number(document.getElementById("markup-select")?.value || 0);
-
-    let msg = "✈️ *Your Flight Options*\n\n";
+    let msg = "🌟 *Premium Flight Quote*\n\n";
 
     flights.forEach((f, index) => {
-
         const fb = f.fare_breakdown || {};
-        const currency = fb.currency || f.price.currency || "AED";
+        const currency = f.price.currency || "AED";
 
-        // Apply markup safely
         const adultTotal  = fb.adults?.total   ? applyMarkup(fb.adults.total, markup)   : 0;
         const childTotal  = fb.children?.total ? applyMarkup(fb.children.total, markup) : 0;
         const infantTotal = fb.infants?.total  ? applyMarkup(fb.infants.total, markup)  : 0;
         const totalPrice  = applyMarkup(f.price.total, markup);
 
-        msg += "----------------------------------\n";
+        msg += "══════════════════\n\n";
 
-        msg += `🛫 *${index === 0 ? "Outbound Flight" : "Inbound Flight"}*\n`;
-        msg += `🏷️ Airline: ${f.carrierName || ""} (${f.flightNumber || ""})\n`;
-        msg += `🌍 Route: ${f.origin} → ${f.destination}\n`;
-        msg += `📅 Date: ${f.departureDate}\n`;
-        msg += `⏰ Dep: ${f.departureTime} — Arr: ${f.arrivalTime}`;
+        msg += `🛫 *${index === 0 ? "Outbound" : "Inbound"}*\n`;
+        msg += `✈️ Airline: ${f.carrierName || ""} (${f.flightNumber || ""})\n`;
+        msg += `🌍 ${f.origin} ➝ ${f.destination}\n`;
+        msg += `📅 ${f.departureDate}\n`;
+
+        msg += `⏱ ${f.departureTime} → ${f.arrivalTime}`;
         if (f.arrivalDate && f.arrivalDate !== f.departureDate) {
             msg += ` (${f.arrivalDate})`;
         }
-        msg += `\n\n`;
 
-        msg += `💼 Baggage: ${f.baggage || "–"}\n`;
+        msg += `\n\n💼 Baggage: ${f.baggage || "—"}\n`;
         msg += `💺 Cabin: ${f.cabin || "ECONOMY"}\n\n`;
 
-        msg += `👥 *Fare Breakdown:*\n`;
-
+        msg += `👥 *Fare Details*\n`;
         if (fb.adults?.count)
-            msg += `• Adult ×${fb.adults.count} = ${adultTotal} ${currency}\n`;
-
+            msg += `• Adult ×${fb.adults.count} — ${adultTotal} ${currency}\n`;
         if (fb.children?.count)
-            msg += `• Child ×${fb.children.count} = ${childTotal} ${currency}\n`;
-
+            msg += `• Child ×${fb.children.count} — ${childTotal} ${currency}\n`;
         if (fb.infants?.count)
-            msg += `• Infant ×${fb.infants.count} = ${infantTotal} ${currency}\n`;
+            msg += `• Infant ×${fb.infants.count} — ${infantTotal} ${currency}\n`;
 
-        msg += `\n💰 *Total: ${totalPrice} ${currency}*\n`;
-        msg += "----------------------------------\n\n";
+        msg += `\n💰 *Total Fare:* ${totalPrice} ${currency}\n\n`;
     });
+
+    msg += "══════════════════";
 
     return msg.trim();
 }
+
 
 
 
