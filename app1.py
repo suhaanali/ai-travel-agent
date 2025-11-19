@@ -52,16 +52,20 @@ MAX_HISTORY = 10
 def apply_cors(response):
     response.headers["Access-Control-Allow-Origin"] = "https://ai-travel-agent-frontend-4djj.onrender.com"
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Session-Id"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
     return response
+
 # Handle CORS preflight OPTIONS requests
 @app.route('/api/<path:path>', methods=['OPTIONS'])
 def api_options(path):
     response = jsonify({"status": "CORS OK"})
     response.headers["Access-Control-Allow-Origin"] = "https://ai-travel-agent-frontend-4djj.onrender.com"
     response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Session-Id"
+    response.headers["Access-Control-Allow-Credentials"] = "true"
     return response
+
 
 # =========================================================
 # 🧭 UNIVERSAL DATE NORMALIZER — Fixes "January 2024" issue
@@ -1924,5 +1928,6 @@ def serve_index():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
+
 
 
