@@ -34,7 +34,12 @@ else:
     app.secret_key = os.urandom(24)
 
 # ✅ Allow only your Render frontend origin
-CORS(app, resources={r"/api/*": {"origins": "https://ai-travel-agent-frontend-4djj.onrender.com"}})
+CORS(
+    app,
+    resources={r"/*": {"origins": "https://ai-travel-agent-frontend-4djj.onrender.com"}},
+    supports_credentials=True
+)
+
 
 # --- Confirm key actually attached ---
 print("[DEBUG] Flask secret key active:", bool(app.secret_key))
@@ -43,6 +48,20 @@ print("[DEBUG] Flask secret key active:", bool(app.secret_key))
 conversation_history = []
 MAX_HISTORY = 10
 
+@app.after_request
+def apply_cors(response):
+    response.headers["Access-Control-Allow-Origin"] = "https://ai-travel-agent-frontend-4djj.onrender.com"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    return response
+# Handle CORS preflight OPTIONS requests
+@app.route('/api/<path:path>', methods=['OPTIONS'])
+def api_options(path):
+    response = jsonify({"status": "CORS OK"})
+    response.headers["Access-Control-Allow-Origin"] = "https://ai-travel-agent-frontend-4djj.onrender.com"
+    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization"
+    return response
 
 # =========================================================
 # 🧭 UNIVERSAL DATE NORMALIZER — Fixes "January 2024" issue
@@ -1905,4 +1924,5 @@ def serve_index():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
+
 
