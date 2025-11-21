@@ -165,28 +165,119 @@ def get_weather(city):
         print("[ERROR] OPENWEATHER_API_KEY is missing!")
         return "⚠️ Weather API key not configured."
 
-    url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={API_KEY}&units=metric"
+    url = f"https://api.openweathermap.org/data/2.5/weather?q={city}&appid={API_KEY}&units=metric"
     print(f"[DEBUG] Fetching weather for {city} → {url}")
+
+    # Weather emoji map
+    WEATHER_ICONS = {
+        "clear": "☀️",
+        "clouds": "☁️",
+        "rain": "🌧️",
+        "thunderstorm": "⛈️",
+        "drizzle": "🌦️",
+        "snow": "❄️",
+        "mist": "🌫️",
+        "fog": "🌫️",
+        "haze": "🌫️",
+        "smoke": "🌫️",
+        "dust": "🌫️",
+        "sand": "🌫️",
+        "ash": "🌫️",
+        "squall": "💨",
+        "tornado": "🌪️"
+    }
 
     try:
         response = requests.get(url, timeout=10)
         print(f"[DEBUG] Status code: {response.status_code}")
-        print(f"[DEBUG] Response text: {response.text[:300]}")
 
         if response.status_code == 200:
             data = response.json()
+
+            # extract weather info
+            main_weather = data["weather"][0]["main"].lower()
             desc = data["weather"][0]["description"].capitalize()
-            temp = data["main"]["temp"]
-            feels = data["main"]["feels_like"]
+            temp = round(data["main"]["temp"])
+            feels = round(data["main"]["feels_like"])
             humidity = data["main"]["humidity"]
-            return f"{desc}, {temp}°C (feels like {feels}°C, humidity {humidity}%)"
-        elif response.status_code == 404:
+
+            # pick emoji
+            icon = WEATHER_ICONS.get(main_weather, "🌤️")
+
+            # return formatted weather
+            return f"{icon} {desc}, {temp}°C (feels like {feels}°C, humidity {humidity}%)"
+
+        if response.status_code == 404:
             return f"⚠️ City '{city}' not found. Please check the spelling."
-        else:
-            return f"⚠️ Weather service returned error {response.status_code}."
+
+        return f"⚠️ Weather service returned error {response.status_code}."
+
     except Exception as e:
         print("[ERROR] Weather fetch failed:", e)
         return "⚠️ Could not fetch weather right now."
+
+def get_weather_forecast(city, days=3):
+    API_KEY = os.getenv("OPENWEATHER_API_KEY")
+    if not API_KEY:
+        return "⚠️ Weather API key not configured."
+
+    # OpenWeather 3-hour forecast (40 entries = 5 days)
+    url = f"https://api.openweathermap.org/data/2.5/forecast?q={city}&appid={API_KEY}&units=metric"
+
+    try:
+        response = requests.get(url, timeout=10)
+        if response.status_code != 200:
+            return f"⚠️ Could not fetch forecast for {city}."
+
+        data = response.json()
+
+        # Group forecast by day
+        from collections import defaultdict
+        groups = defaultdict(list)
+
+        for item in data["list"]:
+            date = item["dt_txt"].split(" ")[0]
+            groups[date].append(item)
+
+        forecast_texts = []
+        count = 0
+
+        for date, items in groups.items():
+            if count >= days:
+                break
+
+            # Take middle-of-day forecast for readability
+            mid = items[len(items)//2]
+            desc = mid["weather"][0]["description"].capitalize()
+            temp = mid["main"]["temp"]
+            feels = mid["main"]["feels_like"]
+            humidity = mid["main"]["humidity"]
+
+            # Icon (simple — emoji version)
+            icon_map = {
+                "clear": "☀️",
+                "cloud": "🌤️",
+                "rain": "🌧️",
+                "thunder": "⛈️",
+                "snow": "❄️"
+            }
+            icon = "🌦️"
+            for key, val in icon_map.items():
+                if key in desc.lower():
+                    icon = val
+                    break
+
+            forecast_texts.append(
+                f"{icon} **{date}** — {desc}, {temp}°C (feels like {feels}°C, humidity {humidity}%)"
+            )
+            count += 1
+
+        return "\n".join(forecast_texts)
+
+    except Exception as e:
+        print("[ERROR] Forecast fetch failed:", e)
+        return f"⚠️ Could not fetch forecast data."
+
 
 
 from datetime import datetime
@@ -336,22 +427,6 @@ HOTEL_COMING_SOON_TEXT = (
 # ===============================================================
 # 🔹 Helper Functions
 # ===============================================================
-
-import requests
-from datetime import datetime
-import pytz
-
-def get_weather(city):
-    """Fetch live weather data using OpenWeatherMap API."""
-    API_KEY = "YOUR_OPENWEATHER_API_KEY"  # get it from openweathermap.org
-    url = f"http://api.openweathermap.org/data/2.5/weather?q={city}&appid={API_KEY}&units=metric"
-    response = requests.get(url)
-    if response.status_code == 200:
-        data = response.json()
-        desc = data["weather"][0]["description"].capitalize()
-        temp = data["main"]["temp"]
-        return f"{desc}, {temp}°C"
-    return "unavailable right now."
 
 
 from amadeus import ResponseError
@@ -1109,62 +1184,64 @@ def search_flights():
     query = data.get("query", "").strip()
     print(f"[USER QUERY] {query}")
 
-    # =========================================================
-    # ✅ STEP 1: Parse user input through GPT
-    # =========================================================
-    gpt_result = interpret_query_with_gpt(query)
+    # STEP 1: Parse with GPT
+    user_context = get_context() or {}
+    gpt_result = interpret_query_with_gpt(query, context=user_context)
     print("[GPT PARSED]", gpt_result)
 
-    # =========================================================
-    # ✅ STEP 2: Intelligent Context Reset
-    # =========================================================
-    manage_context_reset(gpt_result)
-
-    # =========================================================
-    # ✅ STEP 3: Dispatch to correct search handler
-    # =========================================================
+    # STEP 3: Dispatch to correct handler
     intent = gpt_result.get("intent", "").lower()
 
+    # ✈️ Multi-city flights
     if intent == "search_multicity":
         return search_multicity_from_data(gpt_result)
 
+    # ✈️ Regular flights
     elif intent == "search_flights":
         return search_flights_from_data(gpt_result)
 
-    else:
-        # 💬 Handle non-flight / general chat queries
-        general_intents = [
-            "general_chat", "search_weather", "search_time",
-            "search_hotels", "search_activities",
-            "search_places", "search_general"
-        ]
+    # 🏨 Hotels
+    elif intent == "search_hotels":
+        print("[ROUTER] Forwarding to LiteAPI with:", gpt_result)
+        return api_search_hotels(data=gpt_result)
 
-        if gpt_result.get("intent") in general_intents:
-            # fallback AI response for general topics
-            response_text = gpt_fallback_response(query)
+    # 🌦️ Weather handler  ✅ NOW INSIDE FUNCTION
+    elif intent == "search_weather":
+
+        city = gpt_result.get("destination") or gpt_result.get("origin")
+
+        # Detect “next X days”
+        days = 1
+        match_days = re.search(r"next\s+(\d+)\s+days?", query.lower())
+        if match_days:
+            days = int(match_days.group(1))
+
+        # Regex fallback for city
+        if not city:
+            match = re.search(r"(?:in|for|at)\s+([a-zA-Z\s]+)$", query.lower())
+            if match:
+                city = match.group(1).strip()
+
+        # Context fallback
+        if not city:
+            ctx = get_context() or {}
+            city = ctx.get("destination")
+
+        if not city:
             return jsonify({
                 "type": "text",
-                "text": response_text
+                "text": "⚠️ I couldn't detect the city. Try: 'weather in Dubai'."
             })
 
-        # 🗣️ Small-talk / unknown fallback
-        friendly_replies = {
-            "hi": "👋 Hello there! How can I help you today?",
-            "hello": "Hi! 😊 Looking to plan a trip or check flights?",
-            "hey": "Hey! ✈️ Need help finding something?",
-            "thanks": "You're welcome! Always happy to assist!",
-            "thank you": "You're most welcome! 💙",
-        }
+        # Multi-day forecast
+        if days > 1:
+            wx = get_weather_forecast(city, days)
+            return jsonify({"type": "text", "text": wx})
 
-        lower_query = query.lower().strip()
-        if lower_query in friendly_replies:
-            return jsonify({"type": "text", "text": friendly_replies[lower_query]})
+        # Single-day (current weather)
+        wx = get_weather(city)
+        return jsonify({"type": "text", "text": wx})
 
-        # If truly unrecognized, default assistant tone
-        return jsonify({
-            "type": "text",
-            "text": "💬 Sure! Could you please clarify what you’d like me to help with?"
-        })
 
 
     # =========================================================
@@ -1928,6 +2005,7 @@ def serve_index():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
+
 
 
 
