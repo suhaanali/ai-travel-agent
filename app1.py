@@ -1611,29 +1611,25 @@ def general_chat_fallback(history):
 #######################################
 def search_flights_from_data(gpt_result):
     """
-    ✅ FINAL — Smart Flight Search (AED + One-Way + Round-Trip)
-    -----------------------------------------------------------
-    • Detects one-way vs round-trip automatically
-    • Ensures Jan after Nov → next year (2026 logic)
-    • Past dates corrected to next valid future year
-    • Always returns fares in AED
-    • Handles 400 / 429 API errors gracefully
+    Unified search engine for One-Way + Round-Trip + Multi-City
     """
     import json, time
     from datetime import datetime, date
     from flask import jsonify
 
-    print("[FLIGHT SEARCH] Running Amadeus query (AED locked)...")
+    print("[FLIGHT SEARCH] Running unified Amadeus search (AED locked)...")
 
-    # --- Passenger & class info ---
+    # --- Passenger info ---
     pax_adults = int(gpt_result.get("adults", 1))
     pax_children = int(gpt_result.get("children", 0))
     pax_infants = int(gpt_result.get("infants", 0))
+
     travel_class = (gpt_result.get("travelClass") or "ECONOMY").upper()
     if "PREMIUM" in travel_class and "ECONOMY" not in travel_class:
         travel_class = "PREMIUM_ECONOMY"
-    nonstop = str(gpt_result.get("nonStop")).lower() in ["true", "1", "yes"]
-    currency = "AED"  # 🔒 Always AED
+
+    nonstop = str(gpt_result.get("nonStop")).lower() in ["true", "yes", "1"]
+    currency = "AED"
 
     origin_raw = (gpt_result.get("origin") or "").strip()
     dest_raw = (gpt_result.get("destination") or "").strip()
@@ -1642,47 +1638,58 @@ def search_flights_from_data(gpt_result):
 
     today = date.today()
 
-    # --- Smart date correction ---
+    # --- Date Normalizer ---
     def normalize_date(d_raw):
         try:
             d = datetime.fromisoformat(str(d_raw)).date()
-        except Exception:
+        except:
             try:
                 d = datetime.strptime(str(d_raw).split("T")[0], "%Y-%m-%d").date()
-            except Exception:
+            except:
                 d = today
+
         if d < today:
             d = d.replace(year=today.year)
             if d < today:
                 d = d.replace(year=today.year + 1)
+
         return d
 
     dep_date = normalize_date(dep_date_raw)
     ret_date = normalize_date(ret_date_raw) if ret_date_raw else None
 
-    # --- Fix cross-year order (Jan after Nov → next year) ---
-    if ret_date and ret_date <= dep_date:
-        print(f"[ADJUST] Return bumped to next year to stay after departure.")
-        ret_date = ret_date.replace(year=dep_date.year + 1)
+    # --- Fix only true Dec→Jan return ---
+    if ret_date and ret_date < dep_date:
+        if dep_date.month == 12 and ret_date.month == 1:
+            print("[CROSS-YEAR] Valid Dec→Jan return")
+        else:
+            print("[FIX] Return earlier → forcing same year")
+            ret_date = ret_date.replace(year=dep_date.year)
 
-    # --- Format date for print/UI ---
-    def fmt_date(d):
-        try:
-            return datetime.strptime(str(d), "%Y-%m-%d").strftime("%d %b %Y")
-        except Exception:
-            return str(d)
+    # --- IATA codes ---
+    origin_code = get_iata_code(origin_raw) or origin_raw[:3].upper()
+    dest_code = get_iata_code(dest_raw) or dest_raw[:3].upper()
 
-    # --- Normalize IATA codes ---
-    origin_code = get_iata_code(origin_raw) or origin_raw[:3].upper() or "UNK"
-    dest_code = get_iata_code(dest_raw) or dest_raw[:3].upper() or "UNK"
-    print(f"[LOOKUP] {origin_raw} → {origin_code}, {dest_raw} → {dest_code}")
+    # --- Build unified segments ---
+    segments = [{
+        "origin": origin_code,
+        "destination": dest_code,
+        "departureDate": dep_date.isoformat()
+    }]
 
-    # --- Query helper ---
-    def fetch_flights(origin, dest, d_obj):
+    if ret_date:
+        segments.append({
+            "origin": dest_code,
+            "destination": origin_code,
+            "departureDate": ret_date.isoformat()
+        })
+
+    # --- Flight Query Helper ---
+    def fetch_flights(seg):
         params = {
-            "originLocationCode": origin,
-            "destinationLocationCode": dest,
-            "departureDate": d_obj.isoformat(),
+            "originLocationCode": seg["origin"],
+            "destinationLocationCode": seg["destination"],
+            "departureDate": seg["departureDate"],
             "adults": pax_adults,
             "children": pax_children,
             "infants": pax_infants,
@@ -1692,115 +1699,68 @@ def search_flights_from_data(gpt_result):
         }
         if nonstop:
             params["nonStop"] = True
-        print(f"[AMADEUS] Query {origin}→{dest} on {d_obj.isoformat()} nonstop={nonstop}")
+
         try:
             raw = query_amadeus_flights(params)
             offers = raw.get("data", [])
+
             if not offers and nonstop:
-                print("[RETRY] No nonstop results — retrying with stopovers.")
+                print("[RETRY] Nonstop empty → retry with stopovers")
                 params.pop("nonStop", None)
                 raw = query_amadeus_flights(params)
                 offers = raw.get("data", [])
+
             return format_amadeus_response(raw, params) if offers else []
+
         except Exception as e:
-            msg = str(e)
-            if "429" in msg:
-                print("[RATE LIMIT] 429 — retrying in 3s.")
-                time.sleep(3)
-                return fetch_flights(origin, dest, d_obj)
-            elif "400" in msg and nonstop:
-                print("[RETRY] 400 error — retrying with stopovers.")
-                params.pop("nonStop", None)
-                return fetch_flights(origin, dest, d_obj)
-            print(f"[ERROR] Amadeus query failed: {e}")
+            print("[ERROR] Query failed:", e)
             return []
 
-    # =====================================================
-    # ✈️ Handle One-Way and Round-Trip Separately
-    # =====================================================
-    outbound_flights = fetch_flights(origin_code, dest_code, dep_date)
-    return_flights = []
+    # --- Execute actual searches ---
+    flight_results = []
+    for seg in segments:
+        offers = fetch_flights(seg)
+        seg_copy = dict(seg)
 
-    if ret_date:
-        return_flights = fetch_flights(dest_code, origin_code, ret_date)
+        if not offers:
+            seg_copy["offers"] = []
+            seg_copy["no_flights"] = True
+            seg_copy["message"] = "No flights found for this route."
+        else:
+            seg_copy["offers"] = offers
+            seg_copy["no_flights"] = False
 
-    # --- Safe fallback if no data ---
-    def safe_no_results(o, d):
-        return [{
-            "airline": "N/A",
-            "price": "N/A",
-            "departure": o,
-            "arrival": d,
-            "duration": "—",
-            "stops": 0,
-            "message": "No flights found."
-        }]
+        flight_results.append(seg_copy)
 
-    if not outbound_flights:
-        outbound_flights = safe_no_results(origin_code, dest_code)
-    if ret_date and not return_flights:
-        return_flights = safe_no_results(dest_code, origin_code)
-
-    # =====================================================
-    # 🧭 Build Tabs for UI
-    # =====================================================
-    flight_results = [{
-        "tab": f"{origin_code} → {dest_code} ({fmt_date(dep_date)})",
-        "origin": origin_code,
-        "destination": dest_code,
-        "departureDate": dep_date.isoformat(),
-        "offers": outbound_flights
-    }]
-
-    if ret_date:
-        flight_results.append({
-            "tab": f"{dest_code} → {origin_code} ({fmt_date(ret_date)})",
-            "origin": dest_code,
-            "destination": origin_code,
-            "departureDate": ret_date.isoformat(),
-            "offers": return_flights
-        })
-
-    # =====================================================
-    # 📦 Final Payload
-    # =====================================================
-    final_payload = {
-        "flights": flight_results,
-        "segments": flight_results,
-        "outbound": outbound_flights,
-        "inbound": return_flights
-    }
-
-    # =====================================================
-    # 💾 Save Context
-    # =====================================================
-    try:
-        gpt_result["intent"] = "search_flights"
-        gpt_result["segments"] = flight_results
-        with open("last_user_context.json", "w") as f:
-            json.dump(gpt_result, f, indent=2)
-        print("[INFO] Saved flight search context ✅")
-    except Exception as e:
-        print(f"[WARN] Could not save context: {e}")
-
-    pax_text = f"{pax_adults} adult{'s' if pax_adults > 1 else ''}"
-    if pax_children:
-        pax_text += f", {pax_children} child{'ren' if pax_children > 1 else ''}"
-    if pax_infants:
-        pax_text += f", {pax_infants} infant{'s' if pax_infants > 1 else ''}"
+    # --- Build message ---
+    def fmt_date(d):
+        return datetime.strptime(d, "%Y-%m-%d").strftime("%d %b %Y")
 
     if ret_date:
         msg = (
-            f"Here are your {travel_class.title()} fares in {currency} for {pax_text}: "
-            f"{origin_code} → {dest_code} on {fmt_date(dep_date)} and back on {fmt_date(ret_date)}."
+            f"Here are your {travel_class.title()} fares in {currency}: "
+            f"{origin_code} → {dest_code} on {fmt_date(dep_date.isoformat())} "
+            f"and back on {fmt_date(ret_date.isoformat())}."
         )
     else:
-        msg = (
-            f"Here are your one-way {travel_class.title()} fares in {currency} "
-            f"from {origin_code} → {dest_code} on {fmt_date(dep_date)} for {pax_text}."
-        )
+        if all(seg.get("no_flights") for seg in flight_results):
+            msg = (
+                f"⚠️ No flights found for {origin_code} → {dest_code} "
+                f"on {fmt_date(dep_date.isoformat())}."
+            )
+        else:
+            msg = (
+                f"Here are your one-way {travel_class.title()} fares in {currency}: "
+                f"{origin_code} → {dest_code} on {fmt_date(dep_date.isoformat())}."
+            )
 
-    print("[FLIGHT SEARCH DONE ✅]")
+    # --- Final payload ---
+    final_payload = {
+        "segments": flight_results,
+        "flights": flight_results
+    }
+
+    print("[FLIGHT SEARCH DONE]")
     return jsonify({
         "type": "flight_recommendation",
         "text": msg,
@@ -2078,6 +2038,7 @@ def serve_index():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
+
 
 
 
