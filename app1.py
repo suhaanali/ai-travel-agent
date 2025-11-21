@@ -1207,6 +1207,7 @@ def search_flights():
 
     # 🌦 Weather
     elif intent == "search_weather":
+
         city = gpt_result.get("destination") or gpt_result.get("origin")
 
         # Detect “next X days”
@@ -1215,7 +1216,7 @@ def search_flights():
         if match_days:
             days = int(match_days.group(1))
 
-        # Regex fallback
+        # Regex fallback for city
         if not city:
             match = re.search(r"(?:in|for|at)\s+([a-zA-Z\s]+)$", query.lower())
             if match:
@@ -1240,6 +1241,40 @@ def search_flights():
         # Current weather
         wx = get_weather(city)
         return jsonify({"type": "text", "text": wx})
+
+    # 🕒 Time handler
+    elif intent == "search_time":
+
+        city = gpt_result.get("destination") or gpt_result.get("origin")
+
+        # If user asks something like “what is the date today?”
+        if not city and "date" in query.lower():
+            today = datetime.now().strftime("%A, %d %B %Y")
+            return jsonify({
+                "type": "text",
+                "text": f"📅 Today is {today}."
+            })
+
+        # Regex fallback for "time in X"
+        if not city:
+            match = re.search(r"in\s+([a-zA-Z\s]+)$", query.lower())
+            if match:
+                city = match.group(1).strip()
+
+        # Context fallback
+        if not city:
+            ctx = get_context() or {}
+            city = ctx.get("destination")
+
+        # Still no city → ask user
+        if not city:
+            return jsonify({
+                "type": "text",
+                "text": "⚠️ Please specify a city. Example: 'time in Tokyo'."
+            })
+
+        result = get_time(city)
+        return jsonify({"type": "text", "text": result})
 
     # 💬 Everything else → GPT fallback
     else:
@@ -2012,6 +2047,7 @@ def serve_index():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
+
 
 
 
