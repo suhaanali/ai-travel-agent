@@ -1205,9 +1205,8 @@ def search_flights():
         print("[ROUTER] Forwarding to LiteAPI with:", gpt_result)
         return api_search_hotels(data=gpt_result)
 
-    # 🌦️ Weather handler  ✅ NOW INSIDE FUNCTION
+    # 🌦 Weather
     elif intent == "search_weather":
-
         city = gpt_result.get("destination") or gpt_result.get("origin")
 
         # Detect “next X days”
@@ -1216,7 +1215,7 @@ def search_flights():
         if match_days:
             days = int(match_days.group(1))
 
-        # Regex fallback for city
+        # Regex fallback
         if not city:
             match = re.search(r"(?:in|for|at)\s+([a-zA-Z\s]+)$", query.lower())
             if match:
@@ -1238,9 +1237,17 @@ def search_flights():
             wx = get_weather_forecast(city, days)
             return jsonify({"type": "text", "text": wx})
 
-        # Single-day (current weather)
+        # Current weather
         wx = get_weather(city)
         return jsonify({"type": "text", "text": wx})
+
+    # 💬 Everything else → GPT fallback
+    else:
+        response_text = gpt_fallback_response(query)
+        return jsonify({
+            "type": "text",
+            "text": response_text
+        })
 
 
 
@@ -2005,6 +2012,7 @@ def serve_index():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
+
 
 
 
