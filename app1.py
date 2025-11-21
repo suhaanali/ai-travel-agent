@@ -1176,7 +1176,7 @@ def manage_context_reset(gpt_result):
 @app.route("/api/search", methods=["POST"])
 def search_flights():
     global conversation_history
-    import json, re, os
+    import json, re, os, requests
     from datetime import datetime, timedelta
     from flask import request, jsonify
 
@@ -1189,7 +1189,7 @@ def search_flights():
     gpt_result = interpret_query_with_gpt(query, context=user_context)
     print("[GPT PARSED]", gpt_result)
 
-    # STEP 3: Dispatch to correct handler
+    # STEP 3: Dispatch
     intent = gpt_result.get("intent", "").lower()
 
     # ✈️ Multi-city flights
@@ -1207,7 +1207,6 @@ def search_flights():
 
     # 🌦 Weather
     elif intent == "search_weather":
-
         city = gpt_result.get("destination") or gpt_result.get("origin")
 
         # Detect “next X days”
@@ -1216,24 +1215,20 @@ def search_flights():
         if match_days:
             days = int(match_days.group(1))
 
-        # Regex fallback for city
+        # Regex fallback
         if not city:
             match = re.search(r"(?:in|for|at)\s+([a-zA-Z\s]+)$", query.lower())
             if match:
                 city = match.group(1).strip()
 
-        # Context fallback
         if not city:
             ctx = get_context() or {}
             city = ctx.get("destination")
 
         if not city:
-            return jsonify({
-                "type": "text",
-                "text": "⚠️ I couldn't detect the city. Try: 'weather in Dubai'."
-            })
+            return jsonify({"type": "text", "text": "⚠️ I couldn't detect the city."})
 
-        # Multi-day forecast
+        # Forecast
         if days > 1:
             wx = get_weather_forecast(city, days)
             return jsonify({"type": "text", "text": wx})
@@ -1244,46 +1239,82 @@ def search_flights():
 
     # 🕒 Time handler
     elif intent == "search_time":
-
         city = gpt_result.get("destination") or gpt_result.get("origin")
 
-        # If user asks something like “what is the date today?”
+        # If user asks “what is the date today?”
         if not city and "date" in query.lower():
             today = datetime.now().strftime("%A, %d %B %Y")
-            return jsonify({
-                "type": "text",
-                "text": f"📅 Today is {today}."
-            })
+            return jsonify({"type": "text", "text": f"📅 Today is {today}."})
 
-        # Regex fallback for "time in X"
+        # Regex fallback
         if not city:
             match = re.search(r"in\s+([a-zA-Z\s]+)$", query.lower())
             if match:
                 city = match.group(1).strip()
 
-        # Context fallback
         if not city:
-            ctx = get_context() or {}
-            city = ctx.get("destination")
-
-        # Still no city → ask user
-        if not city:
-            return jsonify({
-                "type": "text",
-                "text": "⚠️ Please specify a city. Example: 'time in Tokyo'."
-            })
+            return jsonify({"type": "text", "text": "⚠️ Please specify a city."})
 
         result = get_time(city)
         return jsonify({"type": "text", "text": result})
 
-    # 💬 Everything else → GPT fallback
+    # 💱 Currency Converter
+    elif intent == "search_currency":
+
+        # Use GPT-parsed values first
+        amount = gpt_result.get("amount")
+        from_cur = gpt_result.get("from")
+        to_cur = gpt_result.get("to")
+
+        text = query.lower()
+
+        # Regex fallback for numbers + 3-letter currencies
+        if not amount:
+            amt = re.search(r"(\d+\.?\d*)", text)
+            if amt:
+                amount = float(amt.group(1))
+
+        if not from_cur or not to_cur:
+            cur = re.findall(r"\b[a-zA-Z]{3}\b", text.upper())
+            if len(cur) >= 2:
+                from_cur = from_cur or cur[0]
+                to_cur = to_cur or cur[1]
+
+        # Validation
+        if not amount or not from_cur or not to_cur:
+            return jsonify({
+                "type": "text",
+                "text": "⚠️ Please say: convert 100 AED to INR"
+            })
+
+        # API call
+        api_key = "5ce955cfa68b6faaa9542603"
+        url = f"https://v6.exchangerate-api.com/v6/{api_key}/latest/{from_cur}"
+
+        try:
+            res = requests.get(url, timeout=10).json()
+
+            if res.get("result") != "success":
+                return jsonify({"type": "text",
+                                "text": f"⚠️ API error: {res.get('error-type')}"})
+
+            rate = res["conversion_rates"][to_cur]
+            converted = round(amount * rate, 2)
+
+            return jsonify({
+                "type": "text",
+                "text": f"💱 {amount} {from_cur} = {converted} {to_cur}"
+            })
+
+        except Exception as e:
+            print("FX error:", e)
+            return jsonify({"type": "text",
+                            "text": "⚠️ Could not reach currency API."})
+
+    # 💬 Fallback for everything else
     else:
         response_text = gpt_fallback_response(query)
-        return jsonify({
-            "type": "text",
-            "text": response_text
-        })
-
+        return jsonify({"type": "text", "text": response_text})
 
 
     # =========================================================
@@ -2047,6 +2078,7 @@ def serve_index():
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000, debug=True)
+
 
 
 
