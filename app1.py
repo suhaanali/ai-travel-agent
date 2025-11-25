@@ -11,19 +11,53 @@ from flask_cors import CORS
 from amadeus import Client
 import uuid
 
+hotel_image_cache = {}
+EXPEDIA_REGION_MAP = {
+    "dubai": "2998",
+    "abu dhabi": "2948",
+    "sharjah": "3007",
+    "ras al khaimah": "2995",
+    "fujairah": "2996",
+    "london": "178279",
+    "paris": "179898",
+    "new york": "178293",
+    "singapore": "172674",
+    "tokyo": "179900",
+}
+
+PROPERTY_IDS = [
+    6394, 21870, 910165, 1001421, 114730, 15291, 190827,
+    517439, 81083, 906456, 114530, 115885, 985916, 115888,
+    432678, 527498, 527497, 527499, 486304, 47377, 1545207,
+    903302, 48995, 559080, 804814, 863980, 850069, 521243,
+    83995, 869326, 891770, 4631636
+]
+print(">>> RUNNING FROM FILE:", __file__)
+
 # ==========================================================
-#  CONFIGURATION & INITIALIZATION
+#  FIRST: Load ENV and Expedia credentials
 # ==========================================================
 
-# --- Always load .env from the same directory as this file ---
 dotenv_path = os.path.join(os.path.dirname(__file__), ".env")
 load_dotenv(dotenv_path=dotenv_path)
 
-# --- Read the key from .env ---
-flask_key = os.environ.get("FLASK_SECRET_KEY")
+EXPEDIA_KEY = os.getenv("EXPRapidApiKey")
+EXPEDIA_SECRET = os.getenv("EXPRapidSecret")
+EXPEDIA_API_URL = os.getenv("EXPRapidApiUrl")
 
-# --- Create Flask app BEFORE any helpers use 'session' ---
+# Debug prints (AFTER loading)
+print("Loaded Expedia Key =", EXPEDIA_KEY)
+print("Loaded Expedia Secret =", EXPEDIA_SECRET)
+print("Loaded Expedia URL =", EXPEDIA_API_URL)
+
+# ==========================================================
+#  Flask initialization
+# ==========================================================
+
+flask_key = os.environ.get("FLASK_SECRET_KEY")
 app = Flask(__name__)
+CORS(app, supports_credentials=True)
+
 
 # --- Set secret key ---
 if flask_key:
@@ -33,38 +67,12 @@ else:
     print("[WARN] ⚠️ No FLASK_SECRET_KEY found — generating temporary key.")
     app.secret_key = os.urandom(24)
 
-# ✅ Allow only your Render frontend origin
-CORS(
-    app,
-    resources={r"/*": {"origins": "https://ai-travel-agent-frontend-4djj.onrender.com"}},
-    supports_credentials=True
-)
-
-
 # --- Confirm key actually attached ---
 print("[DEBUG] Flask secret key active:", bool(app.secret_key))
 
 # --- Conversation Memory ---
 conversation_history = []
 MAX_HISTORY = 10
-
-@app.after_request
-def apply_cors(response):
-    response.headers["Access-Control-Allow-Origin"] = "https://ai-travel-agent-frontend-4djj.onrender.com"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Session-Id"
-    response.headers["Access-Control-Allow-Credentials"] = "true"
-    return response
-
-# Handle CORS preflight OPTIONS requests
-@app.route('/api/<path:path>', methods=['OPTIONS'])
-def api_options(path):
-    response = jsonify({"status": "CORS OK"})
-    response.headers["Access-Control-Allow-Origin"] = "https://ai-travel-agent-frontend-4djj.onrender.com"
-    response.headers["Access-Control-Allow-Methods"] = "GET, POST, OPTIONS"
-    response.headers["Access-Control-Allow-Headers"] = "Content-Type, Authorization, X-Session-Id"
-    response.headers["Access-Control-Allow-Credentials"] = "true"
-    return response
 
 
 # =========================================================
@@ -280,6 +288,7 @@ def get_weather_forecast(city, days=3):
 
 
 
+
 from datetime import datetime
 from geopy.geocoders import Nominatim
 from timezonefinder import TimezoneFinder
@@ -429,6 +438,7 @@ HOTEL_COMING_SOON_TEXT = (
 # ===============================================================
 
 
+
 from amadeus import ResponseError
 from datetime import datetime, timedelta
 
@@ -574,39 +584,47 @@ user_context = {}
 
 def handle_user_query(user_input):
     global user_context
-    parsed = parse_user_intent(user_input)
-    text = user_input.lower()
+
+    # ----------------------------------------------------
+    # ALWAYS normalize multi-city dates (fix inconsistent behavior)
+    # ----------------------------------------------------
+    if parsed.get("intent") == "search_multicity" and parsed.get("segments"):
+        for seg in parsed["segments"]:
+            if seg.get("departureDate"):
+                fixed = normalize_future_date(seg["departureDate"])
+                seg["departureDate"] = fixed.isoformat()
+    # ----------------------------------------------------
 
     # 1️⃣ If this is a follow-up like "return on 15 nov"
     if "return" in text and re.search(r"\d{1,2}\s*[a-zA-Z]{3,}", text):
-        # Extract date
         match = re.search(r"(\d{1,2}\s*[a-zA-Z]{3,})", text)
         if match:
             parsed_date = datetime.strptime(match.group(1) + f" {datetime.now().year}", "%d %b %Y")
             user_context["returnDate"] = parsed_date.strftime("%Y-%m-%d")
 
-        # 👇 Auto-fill missing data from previous one-way search
         if user_context.get("origin") and user_context.get("destination"):
-            # Reverse the trip automatically for return
             origin, destination = user_context["origin"], user_context["destination"]
             user_context["origin"], user_context["destination"] = destination, origin
 
         parsed.update(user_context)
         return build_flight_query(parsed)
 
-    # 2️⃣ Handle relative time changes (“next day”, etc.)
+    # 2️⃣ Relative date adjustments
     if re.search(r"next day|previous day|days? (later|after|before|earlier)", text):
         user_context = adjust_relative_date(user_input, user_context)
         parsed.update(user_context)
         return build_flight_query(parsed)
 
-    # 3️⃣ Save/merge context for normal queries (“auh-bom 12 nov”)
+    # 3️⃣ Save new info to context
     for key in ["origin", "destination", "departureDate"]:
         if parsed.get(key):
             user_context[key] = parsed[key]
+
     parsed.update({k: v for k, v in user_context.items() if k not in parsed})
 
     return build_flight_query(parsed)
+
+
 
 
 
@@ -797,39 +815,33 @@ def format_amadeus_response(amadeus_response, params):
 
 def interpret_query_with_gpt(query, context=None):
     """
-    🌍 Ultra-Smart Multilingual Flight & Travel Interpreter (v5)
-    ------------------------------------------------------------
-    Handles:
-      ✅ One-way, return, open-jaw, and multi-city trips
-      ✅ Complex date ranges and flexibility ("between Dec 10–15")
-      ✅ 'Via' routing, stopovers, alliance preferences
-      ✅ Passenger counts, cabin classes, and child/infant handling
-      ✅ Airline preferences (Emirates, Star Alliance, etc.)
-      ✅ Multilingual queries with English defaults
-      ✅ Context-aware follow-up (e.g. “from Abu Dhabi?”)
+    Ultra-Smart Travel Interpreter v5
+    Handles: flights, multicity, hotels, weather, time, etc.
+    Returns clean JSON ONLY.
     """
     from datetime import datetime, timedelta
     import json, re
 
     system_prompt = """
-You are an expert multilingual travel planning AI that converts user flight queries into structured JSON for flight search APIs.
+You are an expert multilingual travel planning AI that converts user travel queries into structured JSON for APIs.
 
-Your task:
-- Detect the user's true travel intent (flights, multi-city, hotels, weather, etc.)
-- Understand natural phrases, dates, routes, and constraints.
-- Output ONLY valid JSON (no explanations, no markdown).
+Your responsibilities:
+- Detect the user's true travel intent (flights, multi-city, hotels, weather, time, etc.)
+- Understand natural phrases, dates, ranges, airports, cities, and constraints.
+- Output ONLY valid JSON. Never output text, markdown, comments, or explanations.
 
 ----------------------------------------------------
 🧭 RECOGNIZED INTENTS
 ----------------------------------------------------
-- "search_flights"        → one-way or round-trip flight
-- "search_multicity"      → multiple legs or 'via' cities
-- "search_hotels"         → hotels, stays, resorts
-- "search_weather"        → weather or forecast queries
-- "search_time"           → timezones or time differences
-- "search_general"        → people, brands, or factual info
-- "general_chat"          → greetings or small talk
+- "search_flights"
+- "search_multicity"
+- "search_hotels"
+- "search_weather"
+- "search_time"
+- "search_general"
+- "general_chat"
 - "search_currency"
+
 ----------------------------------------------------
 🧩 JSON OUTPUT FORMAT
 ----------------------------------------------------
@@ -847,44 +859,59 @@ Your task:
   "adults": "<int>",
   "children": "<int>",
   "infants": "<int>",
-  "preferredAirlines": ["<airline names>"],
+  "preferredAirlines": ["<airlines>"],
   "alliances": ["<Star Alliance|Oneworld|SkyTeam>"],
   "maxStops": "<int or null>",
-  "text": "<brief natural English summary of the user’s request>"
+  "text": "<brief English summary>"
 }
 
 ----------------------------------------------------
-🧠 BEHAVIOR RULES
+🏨 HOTEL SEARCH RULES
 ----------------------------------------------------
-1. If user lists several cities (e.g. "Dubai → Singapore → Tokyo → Dubai") → intent = "search_multicity"
-2. If user mentions "via" or "stopover" → treat as "search_multicity" with extra segments.
-3. If user says "return from another city" (open-jaw), make 2 segments.
-4. Detect and interpret date ranges like:
-   - “between Dec 10–15” → use start = Dec 10, end = Dec 15
-   - “returning Jan 5–10” → use Jan 10 for returnDate
-5. If “flexible” or “+/- N days” → still output a fixed date, but mention flexibility in `text`.
-6. Detect passenger counts and cabin types:
-   - “2 adults, 1 child, 1 infant” → adults=2, children=1, infants=1
-   - “business”, “first”, “premium economy”, etc.
-7. Detect non-stop/direct preference → nonStop=true
-8. Detect alliance or airline constraints:
-   - “Star Alliance”, “Qatar Airways”, “Emirates”, “Air India”, etc.
-9. Maintain English replies unless query is fully in another language.
-10. Never output plain text — JSON only.
+Hotel JSON MUST be:
+{
+  "intent": "search_hotels",
+  "city": "<city>",
+  "checkIn": "<YYYY-MM-DD>",
+  "checkOut": "<YYYY-MM-DD>",
+  "nights": <int>,
+  "adults": <int>,
+  "rooms": <int>,
+  "text": "<summary>"
+}
+
+Hotel rules:
+- Never use origin/destination/departureDate/returnDate for hotels.
+- If user says “check in 19 Nov for 3 nights”
+    - checkIn = parsed date
+    - checkOut = +3 nights
+    - nights = 3
+- If date range “19–22 Nov”
+    - nights = difference
+- Defaults: adults=1, rooms=1
+
+----------------------------------------------------
+✈️ FLIGHT RULES
+----------------------------------------------------
+(unchanged)
+
+----------------------------------------------------
+⛔ OUTPUT RULES
+----------------------------------------------------
+Always output ONLY valid JSON.
 """
 
     try:
         messages = [{"role": "system", "content": system_prompt}]
 
-        # Context awareness
+        # Context
         if context:
-            ctx = f"Previous context: {json.dumps(context, ensure_ascii=False)}"
-            messages.append({"role": "system", "content": ctx})
+            messages.append({"role": "system",
+                             "content": f"Previous context: {json.dumps(context, ensure_ascii=False)}"})
 
-        # Add user query
         messages.append({"role": "user", "content": query})
 
-        # 🔮 Call GPT model
+        # Call GPT
         completion = client.chat.completions.create(
             model="gpt-4o-mini",
             messages=messages,
@@ -892,12 +919,12 @@ Your task:
         )
         parsed = json.loads(completion.choices[0].message.content)
 
-        # =====================================================
-        # 🧠 POST-PROCESSING FIXES
-        # =====================================================
+        # ===============================
+        # POST PROCESSING FIXES
+        # ===============================
         today = datetime.now().date()
 
-        # --- Normalize date ranges like "between Dec 10–15"
+        # --- Date range parser
         def parse_date_range(text):
             text = text.lower()
             m = re.search(r'(\d{1,2})\D{0,3}[-toand]*\D{0,3}(\d{1,2})\s*(\w+)', text)
@@ -913,33 +940,53 @@ Your task:
                     return None, None
             return None, None
 
-        dep_start, dep_end = parse_date_range(query)
-        ret_start, ret_end = parse_date_range(query.split("return")[-1]) if "return" in query.lower() else (None, None)
-        if dep_start and not parsed.get("departureDate"):
-            parsed["departureDate"] = dep_start
-        if ret_end and not parsed.get("returnDate"):
-            parsed["returnDate"] = ret_end
+        # ===============================
+        # ✈️ FLIGHT DATE LOGIC ONLY
+        # ===============================
+        if parsed.get("intent") in ["search_flights", "search_multicity"]:
+            dep_start, dep_end = parse_date_range(query)
 
-        # --- Handle "via" routing if segments missing
+            if "return" in query.lower():
+                ret_start, ret_end = parse_date_range(query.split("return")[-1])
+            else:
+                ret_start, ret_end = (None, None)
+
+            if dep_start and not parsed.get("departureDate"):
+                parsed["departureDate"] = dep_start
+
+            if ret_end and not parsed.get("returnDate"):
+                parsed["returnDate"] = ret_end
+
+        # ===============================
+        # MULTICITY SEGMENT AUTO-BUILD
+        # ===============================
         if parsed.get("intent") == "search_multicity" and not parsed.get("segments"):
             via_match = re.findall(r"via\s+([\w\s,]+)", query.lower())
+            via_cities = []
+
             if via_match:
                 via_cities = [x.strip().title() for x in re.split(r",|or|and", via_match[0]) if x.strip()]
-            else:
-                via_cities = []
-            origin, destination = parsed.get("origin"), parsed.get("destination")
-            all_cities = [origin] + via_cities + [destination] if origin and destination else []
-            parsed["segments"] = [
-                {"origin": all_cities[i], "destination": all_cities[i + 1], "departureDate": parsed.get("departureDate")}
-                for i in range(len(all_cities) - 1)
-            ]
 
-        # --- Fill return trips for open-jaw routes
+            origin = parsed.get("origin")
+            destination = parsed.get("destination")
+            if origin and destination:
+                chain = [origin] + via_cities + [destination]
+                parsed["segments"] = [
+                    {"origin": chain[i], "destination": chain[i + 1],
+                     "departureDate": parsed.get("departureDate")}
+                    for i in range(len(chain) - 1)
+                ]
+
+        # ===============================
+        # AUTO RETURN FLIGHT CREATION
+        # ===============================
         if parsed.get("intent") == "search_flights" and not parsed.get("segments"):
             if parsed.get("origin") and parsed.get("destination"):
-                parsed["segments"] = [
-                    {"origin": parsed["origin"], "destination": parsed["destination"], "departureDate": parsed.get("departureDate")},
-                ]
+                parsed["segments"] = [{
+                    "origin": parsed["origin"],
+                    "destination": parsed["destination"],
+                    "departureDate": parsed.get("departureDate")
+                }]
                 if parsed.get("returnDate"):
                     parsed["segments"].append({
                         "origin": parsed["destination"],
@@ -947,19 +994,24 @@ Your task:
                         "departureDate": parsed["returnDate"]
                     })
 
-        # --- Normalize class
+        # ===============================
+        # NORMALIZE CLASS
+        # ===============================
         if parsed.get("travelClass"):
             cls = parsed["travelClass"].upper().replace(" ", "_")
             if "PREMIUM" in cls and "ECONOMY" not in cls:
                 cls = "PREMIUM_ECONOMY"
             parsed["travelClass"] = cls
 
-        # --- Fill safe defaults
-        for key, val in {
-            "adults": 1, "children": 0, "infants": 0,
-            "nonStop": None, "preferredAirlines": [], "alliances": [], "maxStops": None
-        }.items():
-            parsed.setdefault(key, val)
+        # ===============================
+        # SAFE DEFAULTS (FLIGHT ONLY)
+        # ===============================
+        if parsed.get("intent") in ["search_flights", "search_multicity"]:
+            for key, val in {
+                "adults": 1, "children": 0, "infants": 0,
+                "nonStop": None, "preferredAirlines": [], "alliances": [], "maxStops": None
+            }.items():
+                parsed.setdefault(key, val)
 
         print(f"[GPT PARSED] {json.dumps(parsed, indent=2)}")
         return parsed
@@ -977,9 +1029,6 @@ Your task:
             "nonStop": None,
             "text": "Hello! How can I assist you with your travel plans today?"
         }
-
-
-
 
 
 
@@ -1127,46 +1176,32 @@ def reset_stale_context():
     conversation_history = []
     print("[CONTEXT] 🔄 User session context has been reset.")
 
-def get_preserved_outbound():
-    """Fetch preserved outbound details from last_user_context.json, if available."""
-    try:
-        import json
-        with open("last_user_context.json", "r") as f:
-            saved = json.load(f)
-            if all(k in saved for k in ["origin", "destination", "departureDate"]):
-                return saved
-    except Exception as e:
-        print("[WARN] No preserved outbound context:", e)
-    return None
+
+def get_context():
+    """Retrieve the current user's context from their specific browser session."""
+    if "user_context" not in session:
+        session["user_context"] = {}
+    return session["user_context"]
+
+def update_context(new_data):
+    """Update context only for this specific user."""
+    ctx = session.get("user_context", {})
+    
+    # Merge new data into existing context
+    for k, v in new_data.items():
+        if v: # Only update if value is not None/Empty
+            ctx[k] = v
+            
+    session["user_context"] = ctx
+    session.modified = True # Tell Flask to save the session
+    return ctx
+
+def reset_stale_context():
+    """Clear context for this user only."""
+    session.pop("user_context", None)
+    print("[CONTEXT] 🔄 Session context cleared for current user.")
 
 
-def manage_context_reset(gpt_result):
-    """🧠 Smart context manager — resets only when route changes."""
-    import json, os
-    try:
-        # No previous context = nothing to reset
-        if not os.path.exists("last_user_context.json"):
-            print("[CONTEXT] ℹ️ No previous context found (fresh search).")
-            return
-
-        # Load previous context
-        with open("last_user_context.json") as f:
-            prev = json.load(f)
-
-        prev_origin = (prev.get("origin") or "").lower()
-        prev_dest = (prev.get("destination") or "").lower()
-        new_origin = (gpt_result.get("origin") or "").lower()
-        new_dest = (gpt_result.get("destination") or "").lower()
-
-        # Compare routes
-        if prev_origin != new_origin or prev_dest != new_dest:
-            os.remove("last_user_context.json")
-            print("[CONTEXT] 🧹 New route detected — old context cleared.")
-        else:
-            print("[CONTEXT] ♻️ Same route — keeping context for refinements.")
-
-    except Exception as e:
-        print(f"[WARN] Context management error: {e}")
 
 
 # ===============================================================
@@ -1317,15 +1352,23 @@ def search_flights():
         return jsonify({"type": "text", "text": response_text})
 
 
-    # =========================================================
-    # 🧩 HELPERS
-    # =========================================================
-    def fmt_date(d):
-        """Format date into human-readable '12 Nov 2025'."""
-        try:
-            return datetime.strptime(d.split("T")[0], "%Y-%m-%d").strftime("%d %b %Y")
-        except Exception:
-            return d
+
+
+
+
+
+
+# =========================================================
+# 🧩 HELPERS
+# =========================================================
+def fmt_date(d):
+    """Format date into '12 Nov 2025'."""
+    from datetime import datetime
+    try:
+        return datetime.strptime(d.split("T")[0], "%Y-%m-%d").strftime("%d %b %Y")
+    except Exception:
+        return d
+
 
     def execute_single_flight_search(context, origin_code, dest_code, departure_date):
         """Execute a single Amadeus search and format results."""
@@ -1355,12 +1398,6 @@ def search_flights():
         conversation_history = conversation_history[-MAX_HISTORY:]
 
     user_context = get_context() or {}
-    if not user_context:
-        try:
-            with open("last_user_context.json", "r") as f:
-                user_context = json.load(f)
-        except Exception:
-            user_context = {}
 
     # =========================================================
     # 🧭 GPT PARSING
@@ -1506,18 +1543,17 @@ def search_flights():
             "data": {"tripType": trip_type, "flights": flights_data}
         })
 
-    # =========================================================
+# =========================================================
     # ✈️ MULTI-CITY HANDLING
     # =========================================================
     if gpt_result.get("intent") == "search_multicity":
         print("[HANDLER] ✈️ Multi-city intent detected — resetting context before search.")
         try:
+            # ✅ ONLY clear the session for this specific user
             reset_stale_context()
-            if os.path.exists("last_user_context.json"):
-                os.remove("last_user_context.json")
-                print("[CONTEXT] 🧹 Cleared old last_user_context.json for fresh multi-city search.")
         except Exception as e:
             print(f"[WARN] Could not reset multi-city context: {e}")
+            
         return search_multicity_from_data(gpt_result)
 
 
@@ -1536,7 +1572,6 @@ def search_flights():
     if gpt_result.get("intent") in [
         "search_weather",
         "search_time",
-        "search_hotels",
         "search_activities",
         "search_places",
         "search_general"
@@ -1772,6 +1807,8 @@ def search_flights_from_data(gpt_result):
 
 
 
+
+
 @app.route("/api/flow", methods=["POST"])
 def handle_flow():
     data = request.get_json()
@@ -1993,8 +2030,6 @@ def search_multicity_from_data(gpt_result):
     try:
         gpt_result["intent"] = "search_multicity"
         gpt_result["segments"] = flight_results
-        with open("last_user_context.json", "w") as f:
-            json.dump(gpt_result, f, indent=2)
         print("[INFO] Saved multi-city context ✅")
     except Exception as e:
         print(f"[WARN] Could not save multi-city context: {e}")
@@ -2023,8 +2058,402 @@ def search_multicity_from_data(gpt_result):
         "data": final_payload
     })
 
+    # =====================================================
+    # ⚠️ HOTELS
+    # =====================================================
+import time
+import hashlib
+import requests
+from flask import jsonify, request
+
+HOTELBEDS_API_KEY = "9101ce7fef6713e489f5367dc33cdbae"
+HOTELBEDS_SECRET  = "5983147a3f"
+HOTELBEDS_ENDPOINT = "https://api.test.hotelbeds.com/hotel-api/1.0/hotels"
+
+def hotelbeds_signature():
+    ts = str(int(time.time()))
+    raw = HOTELBEDS_API_KEY + HOTELBEDS_SECRET + ts
+    return hashlib.sha256(raw.encode('utf-8')).hexdigest(), ts
 
 
+
+
+@app.route("/api/hotels", methods=["POST"])
+def api_search_hotels(data=None):
+    from flask import request, jsonify
+
+    print("\n[HOTELBEDS] Incoming hotel search request...")
+
+    # Allow internal GPT router OR external POST request
+    if data is None:
+        data = request.get_json() or {}
+
+    print("[HOTELBEDS] Received data:", data)
+
+    # Extract fields
+    city      = data.get("city")
+    check_in  = data.get("checkIn")
+    check_out = data.get("checkOut")
+    adults    = data.get("adults", 1)
+    rooms     = data.get("rooms", 1)
+
+    # Validate required fields
+    if not city or not check_in or not check_out:
+        print("[HOTELBEDS] ❌ Missing required search fields.")
+        return jsonify({
+            "type": "text",
+            "text": "⚠️ Missing hotel search information."
+        })
+
+    # ------------------------------------------------------
+    # ✔ VALID HOTELBEDS DESTINATION CODES
+    # ------------------------------------------------------
+    def get_hotelbeds_city_code(city_name):
+        mapping = {
+            "paris": "PAR",
+            "new york": "NYC",
+            "dubai": "DXB",
+            "london": "LON",
+            "mumbai": "BOM",
+            "delhi": "DEL",
+            "bangkok": "BKK",
+            "abu dhabi": "AUH",
+            "berlin": "BER",
+            "madrid": "MAD"
+        }
+        return mapping.get(city_name.lower().strip())
+
+    destination_code = get_hotelbeds_city_code(city)
+
+    if not destination_code:
+        print("[HOTELBEDS] ❌ Unsupported city:", city)
+        return jsonify({
+            "type": "text",
+            "text": f"❌ Sorry, I don’t support hotel searches in '{city}'."
+        })
+
+    print(f"[HOTELBEDS] Using destination code: {destination_code}")
+
+    # ------------------------------------------------------
+    # 🧾 Build Hotelbeds request body
+    # ------------------------------------------------------
+    body = {
+        "stay": {
+            "checkIn":  check_in,
+            "checkOut": check_out
+        },
+        "occupancies": [
+            {"rooms": rooms, "adults": adults, "children": 0}
+        ],
+        "destination": {
+            "code": destination_code,
+            "type": "SIMPLE"
+        }
+    }
+
+    # ------------------------------------------------------
+    # 🔐 Authentication Headers
+    # ------------------------------------------------------
+    sig, ts = hotelbeds_signature()
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Api-key": HOTELBEDS_API_KEY,
+        "X-Signature": sig,
+        "X-Timestamp": ts
+    }
+
+    print("[HOTELBEDS] Sending request to API...")
+
+        # ------------------------------------------------------
+    # 🌐 Send Hotelbeds API request
+    # ------------------------------------------------------
+    try:
+        resp = requests.post(HOTELBEDS_ENDPOINT, headers=headers, json=body)
+        print("[HOTELBEDS] Response Status:", resp.status_code)
+        resp.raise_for_status()
+
+        response_json = resp.json()
+
+        # Correct nested structure: hotels.hotels
+        raw_hotels = response_json.get("hotels", {}).get("hotels", [])
+
+        print(f"[HOTELBEDS] Found {len(raw_hotels)} total hotels.")
+
+        # Limit to 5 hotels max
+        raw_hotels = raw_hotels[:5]
+
+        print(f"[HOTELBEDS] Returning {len(raw_hotels)} hotels after limit.")
+
+    except Exception as e:
+        print("[HOTELBEDS] ERROR:", e)
+        return jsonify({
+            "type": "text",
+            "text": f"❌ Hotel search failed: {str(e)}"
+        })
+
+    # ------------------------------------------------------
+    # 🧩 Transform Hotelbeds data → Chat UI format
+    # ------------------------------------------------------
+    results = []
+
+    for idx, h in enumerate(raw_hotels):
+
+
+        hotel_code = h.get("code")  # numeric ID
+
+        # Fetch hotel images from content API
+        images = get_hotelbeds_images(hotel_code)
+
+        # Address fallback handling
+        raw_addr = h.get("address", {})
+        address = (
+            raw_addr.get("content") or
+            raw_addr.get("street") or
+            raw_addr.get("fullAddress") or
+            "Address unavailable"
+        )
+
+        # Amenities
+        facilities = h.get("facilities", [])
+        amenity_list = [f.get("description") for f in facilities if "description" in f]
+
+        # Rate block
+        rate_list = h.get("rates", [])
+        price_block = rate_list[0] if rate_list else {}
+
+        results.append({
+    "id": hotel_code,   # ✅ REQUIRED FIX
+    "name": h.get("name"),
+    "address": address,
+    "rating": h.get("categoryName", "0").replace("stars", "").strip(),
+    "latitude": h.get("coordinates", {}).get("latitude"),
+    "longitude": h.get("coordinates", {}).get("longitude"),
+
+    "images": images,
+
+    "price": {
+        "amount": extract_price(h),
+        "currency": price_block.get("currency", "AED")
+    },
+
+    "description": h.get("description", {}).get("content", ""),
+    "amenities": amenity_list,
+    "bookingLink": price_block.get("rateKey", "")
+})
+
+
+    print("[HOTELBEDS] ✔ Returning hotels with images.")
+
+    return jsonify({
+        "type": "hotels",
+        "data": results
+    })
+
+def get_hotelbeds_images(hotel_code):
+    if hotel_code in hotel_image_cache:
+        return hotel_image_cache[hotel_code]
+
+    try:
+        sig, ts = hotelbeds_signature()
+
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "Api-key": HOTELBEDS_API_KEY,
+            "X-Signature": sig,
+            "X-Timestamp": ts
+        }
+
+        url = f"https://api.test.hotelbeds.com/hotel-content-api/1.0/hotels/{hotel_code}/details"
+        resp = requests.get(url, headers=headers)
+        resp.raise_for_status()
+        data = resp.json()
+
+        images = data.get("hotel", {}).get("images", [])
+        #print("🔥 HOTELBEDS RAW IMAGES:", images)
+
+        urls = []
+
+        for img in images:
+            path = img.get("path")
+            if not path:
+                continue
+
+            # Normalize path → always force "/giata/"
+            if not path.startswith("/"):
+                path = "/" + path
+
+            full_url = "https://photos.hotelbeds.com/giata" + path
+
+            urls.append(full_url)
+
+        if not urls:
+            urls = ["/static/hotel-placeholder.jpg"]
+
+        hotel_image_cache[hotel_code] = urls[:5]
+        return urls[:5]
+
+    except Exception as e:
+        print("[HOTELBEDS IMG ERROR]", e)
+        return ["/static/hotel-placeholder.jpg"]
+
+def get_hotelbeds_room_images(hotel_code, room_code):
+    try:
+        sig, ts = hotelbeds_signature()
+
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "Api-key": HOTELBEDS_API_KEY,
+            "X-Signature": sig,
+            "X-Timestamp": ts
+        }
+
+        url = f"https://api.test.hotelbeds.com/hotel-content-api/1.0/hotels/{hotel_code}/details"
+        resp = requests.get(url, headers=headers)
+        resp.raise_for_status()
+        data = resp.json()
+
+        room_list = data.get("rooms", [])
+        images = []
+
+        for room in room_list:
+            if room.get("code") == room_code:
+                for img in room.get("images", []):
+                    path = img.get("path")
+                    if not path:
+                        continue
+                    if not path.startswith("/"):
+                        path = "/" + path
+
+                    full_url = "https://photos.hotelbeds.com/giata" + path
+                    images.append(full_url)
+
+        if not images:
+            return ["https://source.unsplash.com/800x600/?hotel-room"]
+
+        return images[:5]
+
+    except Exception as e:
+        print("[HOTELBEDS ROOM IMG ERROR]", e)
+        return ["https://source.unsplash.com/800x600/?hotel-room"]
+
+
+
+
+def extract_price(hotel):
+    """
+    Universal Hotelbeds price extractor (NET, SELLING, PRICE object, RATES object).
+    Returns a string numeric price.
+    """
+
+    # 1) New PRICE object
+    if "price" in hotel:
+        price = hotel["price"]
+        return (
+            price.get("sellingRate")
+            or price.get("net")
+            or price.get("hotelSellingRate")
+            or price.get("hotelNet")
+        )
+
+    # 2) Standard RATES array
+    rates = hotel.get("rates", [])
+    if rates:
+        r = rates[0]
+
+        return (
+            r.get("sellingRate")
+            or r.get("net")
+            or r.get("hotelSellingRate")
+            or r.get("hotelNet")
+            or r.get("amount")
+        )
+
+    # 3) Legacy structure (rare)
+    if "minRate" in hotel:
+        return hotel["minRate"]
+
+    if "maxRate" in hotel:
+        return hotel["maxRate"]
+
+    # 4) Fallback
+    return "0"
+
+
+@app.route("/api/hotel/rooms", methods=["POST"])
+def get_hotel_rooms():
+    data = request.json
+    hotel_id = data.get("hotel_id")   # Must match HotelBeds hotel code
+
+    try:
+        sig, ts = hotelbeds_signature()
+
+        headers = {
+            "Accept": "application/json",
+            "Content-Type": "application/json",
+            "Api-key": HOTELBEDS_API_KEY,
+            "X-Signature": sig,
+            "X-Timestamp": ts
+        }
+
+        # Hotel details include ROOMS + IMAGES
+        url = f"https://api.test.hotelbeds.com/hotel-content-api/1.0/hotels/{hotel_id}/details"
+        resp = requests.get(url, headers=headers)
+        resp.raise_for_status()
+        data = resp.json()
+
+        rooms_json = data.get("rooms", [])
+        rooms = []
+
+        for r in rooms_json:
+            room_code = r.get("code")
+
+            # Fetch room images
+            image_list = get_hotelbeds_room_images(hotel_id, room_code)
+
+            rooms.append({
+                "name": r.get("name", "Room"),
+                "beds": r.get("characteristics", {}).get("beds", "Beds not provided"),
+                "free_cancellation": True,  # If you want, we can map HotelBeds policies later.
+                "price": "At hotel",        # Real price requires API from HotelBeds Booking API.
+                "image": image_list[0] if image_list else None
+            })
+
+        return jsonify({"rooms": rooms})
+
+    except Exception as e:
+        print("[ROOM ENDPOINT ERROR]", e)
+        return jsonify({"rooms": []})
+
+
+
+
+
+
+
+
+@app.route("/api/transfers", methods=["POST"])
+def search_transfers():
+    data = request.json
+    origin = data.get("origin")      # Airport IATA
+    destination = data.get("destination")  # coordinates or city center
+    date = data.get("date")
+    passengers = data.get("passengers", 1)
+
+    try:
+        response = AMADEUS.shopping.transfer_offers.get(
+            startLocationCode=origin,
+            endLocationCode=destination,
+            transferDate=date,
+            passengers=passengers
+        )
+        return jsonify(response.data)
+
+    except Exception as e:
+        print("TRANSFER ERROR:", e)
+        return jsonify({"error": "Transfer search failed"}), 500
 # ===============================================================
 # 🔹 Run Server
 # ===============================================================
@@ -2037,13 +2466,12 @@ def serve_index():
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, debug=True)
-
-
-
-
-
-
+    app.run(
+        host="0.0.0.0",
+        port=5000,
+        debug=True,
+        use_reloader=False
+    )
 
 
 
