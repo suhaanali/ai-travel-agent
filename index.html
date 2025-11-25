@@ -10,7 +10,7 @@
 
 
 <style>
-/* 2:17 14 nov 2025======================================================
+/* ======================================================
    AI Travel Agent – Clean Compact UI (v3)
    Palette: Navy (#0B2C5E) + Gold (#B2924C) + Green (#1EAD64)
 ====================================================== */
@@ -334,6 +334,13 @@ body {
   width: 18px;
   height: 18px;
 }
+#room-detail-view.slide-in {
+    transform: translateX(0);
+}
+
+#room-detail-view {
+    transform: translateX(100%);
+}
 
 
 
@@ -438,6 +445,16 @@ body {
     transition: transform 0.18s ease, opacity 0.18s ease;
   }
 
+/* Smooth modal animation */
+#quote-display-modal > div {
+  animation: pop 0.25s ease;
+}
+
+@keyframes pop {
+  from { transform: scale(.92); opacity: 0; }
+  to   { transform: scale(1); opacity: 1; }
+}
+
 
 </style>
 
@@ -499,8 +516,8 @@ body {
         </button>
     </div>
 
-<!-- ⭐ Share + Book Buttons -->
-   <div class="mb-3">
+<!-- ⭐ Markup Dropdown -->
+<div class="mb-3">
     <label class="text-sm font-semibold text-gray-700">Markup:</label>
     <select id="markup-select" class="border rounded px-2 py-1 text-sm ml-2">
         <option value="0">0%</option>
@@ -515,7 +532,9 @@ body {
         <option value="9">9%</option>
         <option value="10">10%</option>
     </select>
-</div> 
+</div>
+
+<!-- ⭐ Share Buttons -->
 <div class="flex gap-2 mb-3">
     <button id="copy-flights-btn"
         class="bg-blue-600 text-white px-3 py-1 rounded text-xs shadow">
@@ -526,16 +545,21 @@ body {
         class="bg-green-600 text-white px-3 py-1 rounded text-xs shadow">
         WhatsApp
     </button>
-
-    <button id="book-flights-btn"
-        class="bg-red-600 text-white px-3 py-1 rounded text-xs shadow">
-        Book
-    </button>
 </div>
+
+
     <!-- Cart items dynamically added here -->
     <div id="cart-items" class="space-y-3 max-h-80 overflow-y-auto">
         <p class="text-gray-500 text-sm">No flights selected yet.</p>
     </div>
+
+<!-- 🏨 Selected Hotels -->
+<div id="cart-hotels" class="mt-4">
+    <h4 class="text-sm font-semibold text-gray-700 mb-2">🏨 Selected Hotels</h4>
+    <div id="cart-hotel-items" class="space-y-2"></div>
+</div>
+
+
 </div>
 
 
@@ -576,6 +600,15 @@ body {
 
   cartBtn.addEventListener("click", openCart);
   cartClose.addEventListener("click", closeCart);
+
+
+function applyMarkup(price, percent) {
+    percent = Number(percent);
+    if (!percent || percent === 0) return price;
+    return Math.round(price * (1 + percent / 100));
+}
+
+
 </script>
 
 
@@ -610,7 +643,21 @@ body {
         <div id="tab2" class="tab-content hidden p-3 w-full"></div>
         <div id="tab3" class="tab-content hidden p-3 w-full"></div>
       </div>
+
     </main>
+<!-- 🏨 HOTEL RESULTS WINDOW (Floating Panel) -->
+<div id="hotel-results-window"
+     class="fixed bottom-6 right-6 w-96 max-h-[80vh] bg-white border border-gray-300 shadow-xl rounded-lg overflow-y-auto hidden z-50">
+
+    <div class="p-3 border-b font-semibold text-lg flex justify-between items-center bg-gray-100">
+        Hotels Found
+        <button onclick="closeHotelResults()" class="text-red-500 hover:text-red-700 text-sm">✖</button>
+    </div>
+
+    <div id="hotel-results-content" class="p-3 space-y-4">
+        <!-- Hotel cards get injected here -->
+    </div>
+</div>
 
     <!-- ✍️ Input Section -->
     <footer class="bg-white border-t border-gray-200 p-3 space-y-3 w-full">
@@ -734,13 +781,11 @@ window.__block_auto_focus = false;
         };
 
         // Global state
-       window.appState = {
-    selectedFlights: [],
-    finalBookingFlights: [],   // ⭐ NEW
-    currentSessionId: 'session_' + Math.random().toString(36).substring(2, 15),
-    retryCount: 0
-};
-
+        window.appState = {
+            selectedFlights: [],
+            currentSessionId: 'session_' + Math.random().toString(36).substring(2, 15),
+            retryCount: 0
+        };
 
         // Firebase state
         let db = null;
@@ -757,70 +802,218 @@ function showLoading(show = true) {
     elements.sendBtn.disabled = false;
   }
 }
-function buildPassengerTemplate() {
-    const flights = window.appState.finalBookingFlights;
-    if (!flights.length) return "";
 
-    const fb = flights[0].fare_breakdown || {};
-    const adults = fb.adults?.count || 0;
-    const children = fb.children?.count || 0;
-    const infants = fb.infants?.count || 0;
+// === Quote Modal Logic ===
 
-    let msg = "Please enter passenger details in the format below:\n\n";
+// Add Passenger Button
+document.getElementById("addPassengerBtn").onclick = () => {
+  const list = document.getElementById("passengerList");
 
-    if (adults > 0) {
-        msg += "🧑‍💼 *Adult Passengers*\n";
-        for (let i = 1; i <= adults; i++) {
-            msg += `${i}) Full Name:\n`;
-        }
-        msg += "\n";
-    }
+  const row = document.createElement("div");
+  row.className = "flex items-center gap-2 mb-2 passenger-row";
 
-    if (children > 0) {
-        msg += "🧒 *Children*\n";
-        for (let i = 1; i <= children; i++) {
-            msg += `${i}) Full Name (Child):\n`;
-        }
-        msg += "\n";
-    }
+  row.innerHTML = `
+    <input 
+      type="text" 
+      class="flex-1 p-2 border rounded-lg passenger-name text-sm"
+      placeholder="Passenger Name">
 
-    if (infants > 0) {
-        msg += "👶 *Infants*\n";
-        for (let i = 1; i <= infants; i++) {
-            msg += `${i}) Full Name (Infant) + Adult they will sit with:\n`;
-        }
-        msg += "\n";
-    }
+    <select class="w-24 p-2 border rounded-lg passenger-type text-sm">
+      <option value="Adult">Adult</option>
+      <option value="Child">Child</option>
+      <option value="Infant">Infant</option>
+    </select>
+  `;
 
-    msg += "_Please reply with all names in this exact format._";
+  list.appendChild(row);
+};
 
-    return msg;
+
+// Cancel button
+document.getElementById("cancelQuoteBtn").onclick = () => {
+  document.getElementById("quote-form-modal").classList.add("hidden");
+};
+
+
+
+
+// 🔥 Function to read modal, close modal, and call generateQuote()
+function handleGenerateQuote() {
+  const customer = document.getElementById("customerName").value.trim();
+  const phone = document.getElementById("customerPhone").value.trim();
+  const email = document.getElementById("customerEmail").value.trim();
+
+  const passengers = [...document.querySelectorAll(".passenger-row")]
+    .map(row => ({
+      name: row.querySelector(".passenger-name").value.trim(),
+      type: row.querySelector(".passenger-type").value
+    }))
+    .filter(p => p.name.length > 0);
+
+  // CLOSE form modal
+  document.getElementById("quote-form-modal").classList.add("hidden");
+
+  // Generate the quotation
+  generateQuote(window.appState.selectedFlights, {
+    customer, phone, email, passengers
+  });
 }
-document.addEventListener("click", async (e) => {
-    if (e.target.id === "book-flights-btn") {
 
-        if (!window.appState.selectedFlights.length) {
-            alert("No flights selected to book.");
-            return;
+// Attach event
+document.addEventListener("DOMContentLoaded", () => {
+  const btn = document.getElementById("confirmQuoteBtn");
+  if (btn) btn.addEventListener("click", handleGenerateQuote);
+});
+
+
+
+
+
+
+
+function generateQuote(flights, details) {
+  const { customer, phone, email, passengers } = details;
+
+  const quoteRef = "QT-" + Date.now().toString().slice(-6);
+  const dateIssued = new Date().toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric"
+  });
+
+  const shortDate = d => new Date(d).toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric"
+  });
+
+  const flightCards = flights.map((f, i) => `
+    <div class="border border-gray-200 rounded-lg p-3 shadow-sm">
+      <div class="flex justify-between mb-1">
+        <span class="font-semibold text-indigo-600">Option ${i+1}</span>
+        <span class="font-bold text-green-600">${f.price.total} ${f.price.currency}</span>
+      </div>
+
+      <div class="font-medium">${f.origin} → ${f.destination}</div>
+
+      <div class="text-[12px] text-gray-600">
+        ${f.departureTime} (${shortDate(f.departureDate)})
+        →
+        ${f.arrivalTime} (${shortDate(f.arrivalDate)})
+      </div>
+
+      <div class="text-[12px] text-gray-700 mt-1">
+        ${f.carrierName} ${f.flightNumber} • 
+        ${f.stops === 0 ? "Non-stop" : `${f.stops} stop via ${f.via}`}
+      </div>
+    </div>
+  `).join("");
+
+  const html = `
+    <div>
+      <h3 class="font-semibold text-indigo-700 mb-1">👤 Client</h3>
+      <div><strong>Name:</strong> ${customer}</div>
+      <div><strong>Phone:</strong> ${phone}</div>
+      <div><strong>Email:</strong> ${email}</div>
+
+      <h3 class="font-semibold text-indigo-700 mt-4 mb-1">🧍 Travelers (${passengers.length})</h3>
+      ${passengers.map(p => `<div>${p.name} — ${p.type}</div>`).join("")}
+
+      <h3 class="font-semibold text-indigo-700 mt-4 mb-1">🛫 Flight Options</h3>
+      <div class="space-y-2">${flightCards}</div>
+
+      <p class="text-[11px] text-gray-500 text-center mt-4">
+        Prices subject to change until confirmed.
+      </p>
+    </div>
+  `;
+
+  // Insert into modal
+  document.getElementById("quote-content").innerHTML = html;
+  document.getElementById("quote-ref").innerText = `Ref: ${quoteRef} • ${dateIssued}`;
+
+  // OPEN display modal
+  document.getElementById("quote-display-modal").classList.remove("hidden");
+}
+
+function openQuoteModal() {
+  document.getElementById("quote-display-modal").classList.remove("hidden");
+}
+
+
+function copyQuote() {
+  const text = document.getElementById("quote-content").innerText;
+  navigator.clipboard.writeText(text);
+  alert("Quotation copied!");
+}
+
+
+
+
+
+
+
+function buildShareMessage() {
+    const flights = window.appState.selectedFlights;
+    if (!flights.length) return "No flights selected.";
+
+    const markup = Number(document.getElementById("markup-select")?.value || 0);
+    let msg = "🌟 *Premium Flight Quote*\n\n";
+
+    flights.forEach((f, index) => {
+        const fb = f.fare_breakdown || {};
+        const currency = f.price.currency || "AED";
+
+        const adultTotal  = fb.adults?.total   ? applyMarkup(fb.adults.total, markup)   : 0;
+        const childTotal  = fb.children?.total ? applyMarkup(fb.children.total, markup) : 0;
+        const infantTotal = fb.infants?.total  ? applyMarkup(fb.infants.total, markup)  : 0;
+        const totalPrice  = applyMarkup(f.price.total, markup);
+
+        msg += "══════════════════\n\n";
+
+        msg += `🛫 *${index === 0 ? "Outbound" : "Inbound"}*\n`;
+        msg += `✈️ Airline: ${f.carrierName || ""} (${f.flightNumber || ""})\n`;
+        msg += `🌍 ${f.origin} ➝ ${f.destination}\n`;
+        msg += `📅 ${f.departureDate}\n`;
+
+        msg += `⏱ ${f.departureTime} → ${f.arrivalTime}`;
+        if (f.arrivalDate && f.arrivalDate !== f.departureDate) {
+            msg += ` (${f.arrivalDate})`;
         }
 
-        // 1️⃣ Save final booking flights
-        window.appState.finalBookingFlights =
-            JSON.parse(JSON.stringify(window.appState.selectedFlights));
+        msg += `\n\n💼 Baggage: ${f.baggage || "—"}\n`;
+        msg += `💺 Cabin: ${f.cabin || "ECONOMY"}\n\n`;
 
-        // 2️⃣ Close panel
-        const panel = document.getElementById("cart-panel");
-        panel.style.display = "none";
+        msg += `👥 *Fare Details*\n`;
+        if (fb.adults?.count)
+            msg += `• Adult ×${fb.adults.count} — ${adultTotal} ${currency}\n`;
+        if (fb.children?.count)
+            msg += `• Child ×${fb.children.count} — ${childTotal} ${currency}\n`;
+        if (fb.infants?.count)
+            msg += `• Infant ×${fb.infants.count} — ${infantTotal} ${currency}\n`;
 
-        // 3️⃣ Ask for passenger names
-        const template = buildPassengerTemplate();
+        msg += `\n💰 *Total Fare:* ${totalPrice} ${currency}\n\n`;
+    });
 
-        await saveMessage(
-            "Great! I'm ready to proceed with the booking.\n\n" + template,
-            "agent"
-        );
+    msg += "══════════════════";
 
-        document.getElementById("user-input").focus();
+    return msg.trim();
+}
+
+// 📋 COPY TO CLIPBOARD
+document.addEventListener("click", e => {
+    if (e.target.id === "copy-flights-btn") {
+        const msg = buildShareMessage();
+        navigator.clipboard.writeText(msg);
+    }
+});
+
+
+// 💬 SHARE TO WHATSAPP
+document.addEventListener("click", e => {
+    if (e.target.id === "share-whatsapp-btn") {
+        const msg = encodeURIComponent(buildShareMessage());
+        const url = `https://wa.me/?text=${msg}`;
+        window.open(url, "_blank");
     }
 });
 
@@ -875,72 +1068,8 @@ function addSelectAllToggle(container) {
 }
 
 
-function buildShareMessage() {
-    const flights = window.appState.selectedFlights;
-    if (!flights.length) return "No flights selected.";
-
-    const markup = Number(document.getElementById("markup-select")?.value || 0);
-    let msg = "🌟 *Premium Flight Quote*\n\n";
-
-    flights.forEach((f, index) => {
-        const fb = f.fare_breakdown || {};
-        const currency = f.price.currency || "AED";
-
-        const adultTotal  = fb.adults?.total   ? applyMarkup(fb.adults.total, markup)   : 0;
-        const childTotal  = fb.children?.total ? applyMarkup(fb.children.total, markup) : 0;
-        const infantTotal = fb.infants?.total  ? applyMarkup(fb.infants.total, markup)  : 0;
-        const totalPrice  = applyMarkup(f.price.total, markup);
-
-        msg += "══════════════════\n\n";
-
-        msg += `🛫 *${index === 0 ? "Outbound" : "Inbound"}*\n`;
-        msg += `✈️ Airline: ${f.carrierName || ""} (${f.flightNumber || ""})\n`;
-        msg += `🌍 ${f.origin} ➝ ${f.destination}\n`;
-        msg += `📅 ${f.departureDate}\n`;
-
-        msg += `⏱ ${f.departureTime} → ${f.arrivalTime}`;
-        if (f.arrivalDate && f.arrivalDate !== f.departureDate) {
-            msg += ` (${f.arrivalDate})`;
-        }
-
-        msg += `\n\n💼 Baggage: ${f.baggage || "—"}\n`;
-        msg += `💺 Cabin: ${f.cabin || "ECONOMY"}\n\n`;
-
-        msg += `👥 *Fare Details*\n`;
-        if (fb.adults?.count)
-            msg += `• Adult ×${fb.adults.count} — ${adultTotal} ${currency}\n`;
-        if (fb.children?.count)
-            msg += `• Child ×${fb.children.count} — ${childTotal} ${currency}\n`;
-        if (fb.infants?.count)
-            msg += `• Infant ×${fb.infants.count} — ${infantTotal} ${currency}\n`;
-
-        msg += `\n💰 *Total Fare:* ${totalPrice} ${currency}\n\n`;
-    });
-
-    msg += "══════════════════";
-
-    return msg.trim();
-}
 
 
-
-
-document.addEventListener("click", e => {
-    if (e.target.id === "copy-flights-btn") {
-        const msg = buildShareMessage();
-        navigator.clipboard.writeText(msg);
-    }
-});
-
-
-// 💬 SHARE TO WHATSAPP
-document.addEventListener("click", e => {
-    if (e.target.id === "share-whatsapp-btn") {
-        const msg = encodeURIComponent(buildShareMessage());
-        const url = `https://wa.me/?text=${msg}`;
-        window.open(url, "_blank");
-    }
-});
 
 
 
@@ -1051,7 +1180,13 @@ document.addEventListener("click", e => {
 function displayMessage(text, role, type = "text", data = null) {
             const isUser = role === "user";
             const alignment = isUser ? "justify-end" : "justify-start";
-            const bubbleClass = isUser ? "user-bubble compact-bubble" : "agent-bubble compact-bubble";
+            const bubbleClass =
+  role === "agent-quote"
+    ? "agent-bubble agent-quote compact-bubble"
+    : isUser
+    ? "user-bubble compact-bubble"
+    : "agent-bubble compact-bubble";
+
 
             // Handle flight recommendations
             if (type === "flight_recommendation" && data) {
@@ -1167,8 +1302,8 @@ function renderFlightRecommendation(flightData, headerText) {
   if (tripType === "oneWay") {
     const oneWayTab = tabsClone.querySelector("#tab1");
     const offers = flightData.offers || flightData.flights?.[0]?.offers || [];
-
-        const offersHTML = offers
+offers.sort((a, b) => a.stops - b.stops);
+    const offersHTML = offers
   .map(
     (offer, index) => `
       <div class="border-2 border-gray-200 rounded-xl p-3 shadow bg-white mb-4 flight-card"
@@ -1194,6 +1329,8 @@ function renderFlightRecommendation(flightData, headerText) {
             ${offer.price?.total || ''} ${offer.price?.currency || ''}
           </div>
         </div>
+
+
 
             <div class="flex justify-between mt-2 text-gray-700 text-[12px]">
               <div>
@@ -1243,11 +1380,18 @@ oneWayTab.innerHTML =
 
 // ⭐ Correct Flight Card Click Handler (NO cloneNode)
 oneWayTab.querySelectorAll(".flight-card").forEach(card => {
+
+    // Prevent multiple listeners
+    if (card.dataset.bound === "1") return;
+    card.dataset.bound = "1";
+
+    // Add stable click listener
     card.addEventListener("click", () => {
         const flight = JSON.parse(card.dataset.flight);
         toggleSelection(flight, card);
     });
 });
+
 
 // ⭐ ADD SELECT-ALL TOGGLE FOR ONE-WAY
 addSelectAllToggle(oneWayTab);
@@ -1363,6 +1507,7 @@ segments.forEach((segment, index) => {
   tabDiv.className = "tab-content p-4 hidden";
 
   const offers = segment.offers || [];
+offers.sort((a, b) => a.stops - b.stops);
 const offersHTML = offers
   .map(
     (offer, index) => `
@@ -1543,11 +1688,12 @@ function toggleSelection(flight, card) {
 
     updateSelectionSummary();
 }
-function applyMarkup(price, percent) {
-    percent = Number(percent);
-    if (!percent || percent === 0) return price;
-    return Math.round(price * (1 + percent / 100));
-}
+
+
+
+
+
+
 
 function updateSelectionSummary() {
     const count = window.appState.selectedFlights.length;
@@ -1576,7 +1722,7 @@ function updateSelectionSummary() {
         const lines = [];
 
         // 🔥 Apply markup to each breakdown block
-       if (fb.adults?.count) {
+if (fb.adults?.count) {
     const markedAdult = applyMarkup(fb.adults.total, markup);
     lines.push(`🧑‍💼 ${fb.adults.count}×Adult = ${markedAdult} ${fb.currency || "AED"}`);
 }
@@ -1662,6 +1808,8 @@ document.addEventListener("change", (e) => { if (e.target.id === "markup-select"
 
 
 
+
+
 function formatDate(dateStr) {
   try {
     const d = new Date(dateStr);
@@ -1734,34 +1882,7 @@ document.addEventListener("DOMContentLoaded", () => {
 });
 
 
-document.addEventListener("DOMContentLoaded", () => {
-  const selectAllBtn = document.getElementById("select-all-flights");
-  if (!selectAllBtn) return;
 
-  selectAllBtn.addEventListener("click", () => {
-    const allFlightCards = document.querySelectorAll("[data-flight]");
-    if (!allFlightCards.length) {
-      alert("No flights available to select.");
-      return;
-    }
-
-    window.appState.selectedFlights = [];
-
-    allFlightCards.forEach(card => {
-      try {
-        const flight = JSON.parse(card.dataset.flight);
-        window.appState.selectedFlights.push(flight);
-
-        // highlight card visually if you want
-        card.classList.add("ring-2", "ring-blue-500");
-      } catch (e) {
-        console.warn("Invalid flight object", e);
-      }
-    });
-
-    updateSelectionSummary();
-  });
-});
 
 
 
@@ -2054,20 +2175,55 @@ async function handleUserInput() {
   const query = elements.userInput.value.trim();
   if (!query) return;
 
-  // Reset input + disable send
   elements.userInput.value = '';
   elements.sendBtn.disabled = true;
   showLoading(true);
 
   try {
-    // Clear previous selections
-    //window.appState.selectedFlights = [];
-    //updateSelectionSummary();
-
-    // 1️⃣ Display user's message in chat
     await saveMessage(query, 'user');
 
-    // 2️⃣ Show temporary “thinking…” message depending on query type
+    // ⭐⭐⭐ CUSTOM COMMANDS FOR SELECTED FLIGHTS ⭐⭐⭐
+    const selected = window.appState.selectedFlights || [];
+
+// User types “quote”
+if (/quote|quotation|price summary|cost/i.test(query)) {
+  if (selected.length === 0) {
+    saveMessage("No flights selected yet.", "agent");
+  } else {
+    document.getElementById("quote-form-modal").classList.remove("hidden");
+  }
+  showLoading(false);
+  elements.sendBtn.disabled = false;
+  return;
+}
+
+
+    // === Itinerary ===
+    if (/itinerary|itenary|itin|plan my trip|schedule/i.test(query)) {
+      if (selected.length === 0) {
+        saveMessage("No flights selected yet.", "agent");
+      } else {
+        generateItinerary(selected);
+      }
+      showLoading(false);
+      elements.sendBtn.disabled = false;
+      return;
+    }
+
+    // === Summary ===
+    if (/summary|show my flights|view selection|selected flights/i.test(query)) {
+      if (selected.length === 0) {
+        saveMessage("No flights selected yet.", "agent");
+      } else {
+        generateSummary(selected);
+      }
+      showLoading(false);
+      elements.sendBtn.disabled = false;
+      return;
+    }
+
+    // ⭐⭐⭐ END CUSTOM BLOCK ⭐⭐⭐
+
     let tempText = "Processing your request...";
     if (/\b(flight|fly|air|return|trip|ticket|airport|departure|arrival)\b/i.test(query)) {
       tempText = "Searching for the best flights...";
@@ -2087,45 +2243,31 @@ async function handleUserInput() {
 
     await saveMessage(tempText, 'agent', 'text', null);
 
-    // 3️⃣ Send query to backend (Flask API)
+    // 3️⃣ Send query to backend
     const agentResponse = await callGenerativeAgent(query);
 
-    // 4️⃣ Remove temporary bubble once we have a real response
+    // 4️⃣ Remove temporary bubble
     const tempMsg = [...elements.chatHistory.querySelectorAll('.agent-bubble')]
       .find(el => el.textContent.trim() === tempText);
     if (tempMsg) tempMsg.remove();
 
-    // 5️⃣ Display backend response appropriately
-    if (agentResponse.type === 'flight_recommendation') {
-      renderFlightRecommendation(
-        agentResponse.data,
-        agentResponse.text || "Here are your flight options:"
-      );
-    } else if (agentResponse.text) {
-      await saveMessage(agentResponse.text, 'agent', agentResponse.type, agentResponse.data);
-    } else {
-      console.warn("⚠️ Backend response missing text:", agentResponse);
-      await saveMessage("I couldn’t find relevant information for that.", 'agent', 'text', null);
-    }
+    // 5️⃣ Unified handler
+    handleSearchResponse(agentResponse);
+    return;
 
   } catch (error) {
     console.error('Agent communication failed:', error);
     const errorMessage = `I encountered an issue while processing your request. Please try again. (Error: ${error.message})`;
     await saveMessage(errorMessage, 'agent', 'text', null);
-} finally {
+  } finally {
     showLoading(false);
     elements.sendBtn.disabled = false;
 
-    // ✅ Prevent autofocus if clipboard copy triggered
-    if (!window.__block_auto_focus) {
-      elements.userInput.focus();
-    }
-
-    // Reset flag after send cycle
+    if (!window.__block_auto_focus) elements.userInput.focus();
     window.__block_auto_focus = false;
+  }
 }
 
-}
 
 
 
@@ -2292,9 +2434,438 @@ updateSelectionSummary = function() {
   updateCartBadge();
 };
 
+function showHotelResults() {
+    document.getElementById("hotel-results-window").classList.remove("hidden");
+}
+
+function closeHotelResults() {
+    document.getElementById("hotel-results-window").classList.add("hidden");
+}
+
+function clearHotelResults() {
+    document.getElementById("hotel-results-content").innerHTML = "";
+}
+
+function updateHotelCart() {
+
+    const container = document.getElementById("cart-hotel-items");
+    const block = document.getElementById("cart-hotels");
+
+    const hotels = window.appState.selectedHotels || [];
+
+    if (hotels.length === 0) {
+        block.classList.add("hidden");
+        return;
+    }
+
+    block.classList.remove("hidden");
+
+    container.innerHTML = hotels.map(h => `
+        <div class="border rounded p-2 shadow-sm text-xs">
+            <div class="font-semibold">${h.name}</div>
+            <div>${"⭐".repeat(h.rating)}</div>
+            <div>${h.checkIn} → ${h.checkOut}</div>
+            <div>${h.address}</div>
+            <div class="font-bold text-green-700">
+                ${h.price} ${h.currency}
+            </div>
+            <div class="text-gray-500">${h.nights} night(s)</div>
+        </div>
+    `).join("");
+}
 
 
+function esc(str) {
+    return String(str || "")
+        .replace(/&/g, "&amp;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;")
+        .replace(/"/g, "&quot;");
+}
+
+
+function renderHotelsFromBackend(hotels) {
+    const chat = document.getElementById("chat-history");
+
+    const bubble = document.createElement("div");
+    bubble.className = "agent-bubble";
+
+    bubble.innerHTML = `
+        <div class="flex items-start space-x-3">
+            <div class="w-8 h-8 rounded-full overflow-hidden bg-white shadow flex items-center justify-center">
+                <img src="./static/person.png" class="object-contain w-7 h-7">
+            </div>
+            <div class="flex-1" id="hotel-bubble-content"></div>
+        </div>
+    `;
+
+    const contentArea = bubble.querySelector("#hotel-bubble-content");
+
+    hotels.forEach(info => {
+
+        const images = info.images || [];
+        const imageUrl = images.length ? images[0] : "./static/hotel-placeholder.jpg";
+
+        // Room section like Booking.com
+        const roomHTML = `
+            <div class="text-sm font-semibold text-gray-800 mt-1">${esc(info.roomName || "Standard Room")}</div>
+            <div class="text-xs text-gray-600">${esc(info.beds || "")}</div>
+
+            <div class="text-xs text-green-700 mt-1">
+                ${info.freeCancellation ? "✔ Free cancellation<br>" : ""}
+                ${info.noPrepayment ? "✔ No prepayment needed – pay at the property" : ""}
+            </div>
+
+            <div class="text-xs text-gray-600 mt-1">
+                ${esc(info.nights || "1 night")}, ${esc(info.adults || "2 adults")}
+            </div>
+        `;
+
+        // PRICE BLOCK — now BELOW details
+        const priceHTML = `
+            <div class="mt-3 text-right">
+                <div class="font-bold text-xl text-green-700 leading-tight whitespace-nowrap">
+                    ${info.price.amount} ${info.price.currency}
+                </div>
+                <div class="text-xs text-gray-500 whitespace-nowrap leading-tight">
+                    + taxes and charges
+                </div>
+            </div>
+        `;
+
+        // FINAL CARD
+        contentArea.innerHTML += `
+<div class="border border-gray-200 rounded-xl p-4 shadow-sm bg-white mb-4">
+
+    <div class="flex">
+
+        <!-- IMAGE -->
+        <div class="relative w-28 h-28 rounded-lg overflow-hidden flex-shrink-0 mr-3">
+            <img src="${esc(imageUrl)}"
+                class="w-full h-full object-cover cursor-pointer"
+                onclick="openMobileImageViewer('${esc(imageUrl)}')">
+        </div>
+
+        <!-- HOTEL TEXT -->
+        <div class="flex flex-col flex-1">
+
+            <!-- HOTEL NAME -->
+            <div class="font-semibold text-base text-blue-700 leading-tight">
+                ${esc(info.name)}
+            </div>
+
+            <!-- STARS -->
+            <div class="text-yellow-500 text-xs mb-1">
+                ${"⭐".repeat(parseInt(info.rating || 0))}
+            </div>
+
+            <!-- MAP -->
+            <div class="text-xs text-blue-600 underline mb-1"
+                 onclick="openMap(${info.latitude}, ${info.longitude})">
+                 Show on map
+            </div>
+
+            <!-- ROOM SECTION -->
+            ${roomHTML}
+
+            <!-- PRICE BLOCK BELOW (clean layout) -->
+            ${priceHTML}
+
+        </div>
+    </div>
+
+    <!-- BUTTON -->
+<button 
+    class="hotel-detail-btn bg-blue-700 text-white w-full py-2 mt-3 rounded-lg text-sm"
+    data-info='${JSON.stringify(info)}'>
+    See availability →
+</button>
+
+</div>
+        `;
+    });
+
+    chat.appendChild(bubble);
+    chat.scrollTop = chat.scrollHeight;
+}
+document.addEventListener("click", e => {
+    if (e.target.classList.contains("hotel-detail-btn")) {
+        const raw = e.target.dataset.info;
+        const info = JSON.parse(raw);
+        openHotelDetails(info);
+    }
+});
+
+
+
+
+
+
+function handleSearchResponse(response) {
+
+    // TEXT
+    if (response.type === "text") {
+        addAgentMessage(response.text);
+        return;
+    }
+
+    // FLIGHTS
+    if (response.type === "flight_recommendation") {
+                renderFlightRecommendation(response.data, response.text);
+        return;
+    }
+
+    // HOTELS
+    if (response.type === "hotels") {
+        const hotels = response.data || [];
+        if (hotels.length === 0) {
+            addAgentMessage("No hotels found.");
+            return;
+        }
+
+        renderHotelsFromBackend(hotels);
+        return;
+    }
+
+    // DEFAULT
+    addAgentMessage("I couldn’t find relevant information for that.");
+}
+function addAgentMessage(text) {
+    return saveMessage(text, 'agent', 'text', null);
+}
+
+
+function mobileNext() {
+    mobileIndex = (mobileIndex + 1) % mobileImages.length;
+    document.getElementById("mobileImage").src = mobileImages[mobileIndex];
+}
+
+function mobilePrev() {
+    mobileIndex = (mobileIndex - 1 + mobileImages.length) % mobileImages.length;
+    document.getElementById("mobileImage").src = mobileImages[mobileIndex];
+}
+
+function closeMobileViewer() {
+    document.getElementById("mobileImageViewer").classList.add("hidden");
+}
+
+function openHotelDetails(info) {
+    const panel = document.getElementById("room-detail-view");
+    const box = document.getElementById("room-detail-content");
+
+    // Slide panel in
+    panel.classList.remove("hidden");
+    panel.classList.remove("translate-x-full");
+    panel.classList.add("slide-in");
+
+    // Show loading
+    box.innerHTML = `
+        <div class="text-center text-gray-600 mt-4">
+            Loading room types for <b>${info.name}</b>...
+        </div>
+    `;
+
+    // Fetch room types
+    fetch("/api/hotel/rooms", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ hotel_id: info.id })
+    })
+    .then(res => res.json())
+    .then(data => {
+        const rooms = data.rooms || [];
+
+        if (!rooms.length) {
+            box.innerHTML = `
+                <div class="text-center text-red-600 mt-4">
+                    No rooms available.
+                </div>
+            `;
+            return;
+        }
+
+        box.innerHTML = rooms
+            .map(r => {
+                const roomImage = (r.image && r.image.trim() !== "")
+                    ? r.image
+                    : "https://source.unsplash.com/800x600/?hotel-room";
+
+                return `
+                    <div class="border border-gray-200 rounded-lg p-4 mb-4">
+
+                        <div class="font-semibold text-lg text-blue-700 mb-2">
+                            ${r.name}
+                        </div>
+
+                        <img src="${roomImage}"
+                            class="w-full h-40 rounded-lg object-cover mb-3">
+
+                        <div class="text-sm text-gray-700">${r.beds || ""}</div>
+
+                        ${
+                            r.free_cancellation
+                                ? `<div class="text-sm text-green-600 mt-1">✔ Free cancellation</div>`
+                                : ""
+                        }
+
+                        <div class="text-xl font-bold text-green-700 mt-3">
+                            ${r.price}
+                        </div>
+
+                        <button class="bg-blue-600 text-white mt-3 w-full py-2 rounded-lg">
+                            Select room →
+                        </button>
+
+                    </div>
+                `;
+            })
+            .join("");
+    })
+    .catch(err => {
+        console.error(err);
+        box.innerHTML = `
+            <div class="text-center text-red-600 mt-4">
+                Failed to load room details.
+            </div>
+        `;
+    });
+}
+
+
+
+document.getElementById("room-back-btn").onclick = () => {
+    const panel = document.getElementById("room-detail-view");
+
+    panel.classList.remove("slide-in");
+    panel.classList.add("translate-x-full");
+
+    setTimeout(() => panel.classList.add("hidden"), 250);
+};
+
+
+function closeHotelDetails() {
+    document.getElementById("hotelDetailsModal").classList.add("hidden");
+}
 
     </script>
+
+<!-- Full-screen mobile image viewer -->
+<div id="mobileImageViewer"
+     class="hidden fixed inset-0 bg-black bg-opacity-90 flex items-center justify-center z-50 p-4">
+    <img id="mobileImage" class="max-h-full max-w-full object-contain rounded-lg shadow-lg">
+</div>
+
+<script>
+function openMobileImageViewer(url) {
+    document.getElementById("mobileImage").src = url;
+    document.getElementById("mobileImageViewer").classList.remove("hidden");
+}
+
+function closeMobileImageViewer() {
+    document.getElementById("mobileImageViewer").classList.add("hidden");
+}
+
+document.getElementById("mobileImageViewer")
+    .addEventListener("click", closeMobileImageViewer);
+
+function openMap(lat, lng) {
+    if (!lat || !lng) return;
+    window.open(`https://www.google.com/maps?q=${lat},${lng}`, "_blank");
+}
+
+
+
+
+
+
+
+</script>
+
+<!-- HOTEL ROOM DETAIL SLIDE-IN PANEL -->
+<div id="room-detail-view"
+     class="fixed top-0 right-0 w-96 h-full bg-white shadow-2xl border-l border-gray-300 hidden translate-x-full transition-all duration-300 z-50">
+
+    <!-- HEADER -->
+    <div class="p-4 border-b flex justify-between items-center bg-gray-100">
+        <span class="font-semibold text-gray-800 text-lg">Room Details</span>
+        <button id="room-back-btn" class="text-red-600 font-bold text-sm">✖</button>
+    </div>
+
+    <!-- CONTENT -->
+    <div id="room-detail-content" class="p-4 overflow-y-auto h-full">
+        Loading...
+    </div>
+</div>
+
+
+<div id="quote-form-modal" class="fixed inset-0 flex items-center justify-center bg-black bg-opacity-40 hidden z-50">
+  <div class="bg-white p-4 rounded-xl shadow-lg w-[90%] max-w-sm mx-auto">
+    
+    <h2 class="text-lg font-semibold mb-3 text-center">Quote Details</h2>
+
+    <label class="block text-sm font-medium mb-1">Customer Name</label>
+    <input id="customerName" type="text" class="w-full p-2 border rounded-lg mb-3 text-sm">
+
+    <label class="block text-sm font-medium mb-1">Passengers</label>
+
+    <div id="passengerList">
+      <div class="flex items-center gap-2 mb-2 passenger-row">
+        <input type="text" class="flex-1 p-2 border rounded-lg passenger-name text-sm" placeholder="Passenger 1 Name">
+        <select class="w-24 p-2 border rounded-lg passenger-type text-sm">
+          <option value="Adult">Adult</option>
+          <option value="Child">Child</option>
+          <option value="Infant">Infant</option>
+        </select>
+      </div>
+    </div>
+
+    <button id="addPassengerBtn" class="text-blue-600 text-sm mb-3">+ Add Passenger</button>
+
+    <label class="block text-sm font-medium mb-1">Phone</label>
+    <input id="customerPhone" type="tel" class="w-full p-2 border rounded-lg mb-3 text-sm">
+
+    <label class="block text-sm font-medium mb-1">Email</label>
+    <input id="customerEmail" type="email" class="w-full p-2 border rounded-lg mb-4 text-sm">
+
+    <div class="flex justify-end gap-2">
+      <button id="cancelQuoteBtn" class="px-4 py-2 bg-gray-200 rounded-lg text-sm">Cancel</button>
+      <button id="confirmQuoteBtn" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm">Generate</button>
+    </div>
+
+  </div>
+</div>
+
+
+<div id="quote-display-modal"
+     class="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-50 hidden">
+
+  <div class="bg-white w-[390px] max-h-[90vh] overflow-y-auto rounded-xl shadow-2xl p-5">
+
+      <div class="text-center mb-4">
+        <h2 class="text-xl font-bold text-indigo-700">✈️ Flight Quotation</h2>
+        <p id="quote-ref" class="text-[11px] text-gray-500"></p>
+      </div>
+
+      <div id="quote-content" class="text-[13px] text-gray-800 space-y-4"></div>
+
+      <div class="flex justify-between mt-4">
+        <button onclick="closeQuoteModal()" class="px-4 py-2 bg-gray-200 rounded-lg text-sm">
+          Close
+        </button>
+        <button onclick="copyQuote()" class="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm shadow">
+          Copy
+        </button>
+      </div>
+
+  </div>
+</div>
+
+<script>
+function closeQuoteModal() {
+  document.getElementById("quote-display-modal").classList.add("hidden");
+}
+</script>
+
+
 </body>
 </html>
