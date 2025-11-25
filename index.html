@@ -882,32 +882,95 @@ function generateQuote(flights, details) {
   });
 
   const shortDate = d => new Date(d).toLocaleDateString("en-US", {
+    day: "numeric",
     month: "short",
-    day: "numeric"
+    year: "numeric"
   });
 
+  const formatDuration = dur => {
+    const h = dur.match(/(\d+)H/)?.[1] || "0";
+    const m = dur.match(/(\d+)M/)?.[1] || "0";
+    return `${h}h ${m}m`;
+  };
+
+  /* ------------------------------------------
+      GROUP PASSENGERS BY TYPE
+  -------------------------------------------*/
+  const grouped = passengers.reduce((acc, p) => {
+    acc[p.type] = (acc[p.type] || 0) + 1;
+    return acc;
+  }, {});
+
+  const passengerSummary = Object.entries(grouped)
+    .map(([type, count]) => `${count}× ${type}${count > 1 ? "s" : ""}`)
+    .join(" • ");
+
+  /* ------------------------------------------
+      FLIGHT CARDS
+  -------------------------------------------*/
   const flightCards = flights.map((f, i) => `
-    <div class="border border-gray-200 rounded-lg p-3 shadow-sm">
-      <div class="flex justify-between mb-1">
-        <span class="font-semibold text-indigo-600">Option ${i+1}</span>
-        <span class="font-bold text-green-600">${f.price.total} ${f.price.currency}</span>
+    <div class="border border-gray-300 rounded-xl p-4 shadow-sm bg-white">
+
+      <div class="flex justify-between items-start mb-3">
+
+        <div class="flex items-center gap-3">
+          <img src="https://content.airhex.com/content/logos/airlines_${f.carrierCode}_100_100_s.png"
+               class="w-10 h-10 rounded-full object-contain bg-white"
+               onerror="this.style.display='none'">
+
+          <div>
+            <div class="text-[13px] font-semibold text-gray-800 uppercase">
+              ${f.carrierName}
+            </div>
+            <div class="text-[12px] text-gray-500">${f.flightNumber}</div>
+          </div>
+        </div>
+
+        <div class="text-green-600 font-bold text-lg">
+          ${f.price.total} ${f.price.currency}
+        </div>
       </div>
 
-      <div class="font-medium">${f.origin} → ${f.destination}</div>
+      <div class="grid grid-cols-3 text-[12px]">
 
-      <div class="text-[12px] text-gray-600">
-        ${f.departureTime} (${shortDate(f.departureDate)})
-        →
-        ${f.arrivalTime} (${shortDate(f.arrivalDate)})
+        <div>
+          <div class="font-semibold">${f.departureTime} Depart</div>
+          <div class="text-gray-500">${shortDate(f.departureDate)}</div>
+          <div class="font-semibold mt-1">${f.origin}</div>
+        </div>
+
+        <div class="flex flex-col items-center text-center">
+          <div class="text-indigo-600 font-medium flex items-center gap-1">
+            ✈ ${formatDuration(f.flightDuration)}
+          </div>
+          <div class="text-orange-600 font-semibold">
+            ${f.stops === 0 ? "Non-stop" : `1 stop via ${f.via}`}
+          </div>
+        </div>
+
+        <div class="text-right">
+          <div class="font-semibold">${f.arrivalTime} Arrive</div>
+          <div class="text-gray-500">${shortDate(f.arrivalDate)}</div>
+          <div class="font-semibold mt-1">${f.destination}</div>
+        </div>
+
       </div>
 
-      <div class="text-[12px] text-gray-700 mt-1">
-        ${f.carrierName} ${f.flightNumber} • 
-        ${f.stops === 0 ? "Non-stop" : `${f.stops} stop via ${f.via}`}
+      <hr class="border-gray-300 my-3">
+
+      <div class="text-[12px] space-y-1">
+        <div class="text-gray-700">🧳 ${f.baggage || "25 KG"} • ${f.cabin || "Economy"}</div>
+        <div class="text-gray-800 font-semibold">
+          👤 1×Adult = ${f.price.total} ${f.price.currency}
+        </div>
       </div>
+
     </div>
   `).join("");
 
+  /* ------------------------------------------
+      FINAL HTML
+  -------------------------------------------*/
   const html = `
     <div>
       <h3 class="font-semibold text-indigo-700 mb-1">👤 Client</h3>
@@ -916,10 +979,19 @@ function generateQuote(flights, details) {
       <div><strong>Email:</strong> ${email}</div>
 
       <h3 class="font-semibold text-indigo-700 mt-4 mb-1">🧍 Travelers (${passengers.length})</h3>
-      ${passengers.map(p => `<div>${p.name} — ${p.type}</div>`).join("")}
+
+      <!-- Grouped summary -->
+      <div class="text-[13px] font-medium text-gray-800 mb-1">
+        ${passengerSummary}
+      </div>
+
+      <!-- Individual names -->
+      <div class="text-[12px] text-gray-600">
+        ${passengers.map(p => `<div>${p.name} — ${p.type}</div>`).join("")}
+      </div>
 
       <h3 class="font-semibold text-indigo-700 mt-4 mb-1">🛫 Flight Options</h3>
-      <div class="space-y-2">${flightCards}</div>
+      <div class="space-y-4">${flightCards}</div>
 
       <p class="text-[11px] text-gray-500 text-center mt-4">
         Prices subject to change until confirmed.
@@ -927,13 +999,11 @@ function generateQuote(flights, details) {
     </div>
   `;
 
-  // Insert into modal
   document.getElementById("quote-content").innerHTML = html;
   document.getElementById("quote-ref").innerText = `Ref: ${quoteRef} • ${dateIssued}`;
-
-  // OPEN display modal
   document.getElementById("quote-display-modal").classList.remove("hidden");
 }
+
 
 function openQuoteModal() {
   document.getElementById("quote-display-modal").classList.remove("hidden");
