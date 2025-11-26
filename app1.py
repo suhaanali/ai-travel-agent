@@ -2090,14 +2090,86 @@ def api_search_hotels(data=None):
 
     print("[HOTELBEDS] Received data:", data)
 
-    # Extract fields
-    city      = data.get("city")
-    check_in  = data.get("checkIn")
-    check_out = data.get("checkOut")
-    adults    = data.get("adults", 1)
-    rooms     = data.get("rooms", 1)
+    # Extract city
+    city = data.get("city")
 
-    # Validate required fields
+    # =================================================================
+    # 🧭 HOTEL DATE HANDLER — ISO + normalize_date + nights
+    # =================================================================
+    raw_check_in  = data.get("checkIn")
+    raw_check_out = data.get("checkOut")
+    nights = data.get("nights", 1)
+
+    check_in = None
+    check_out = None
+
+    # 1️⃣ Try ISO format first
+    def try_iso(d):
+        try:
+            return datetime.fromisoformat(str(d)).date()
+        except:
+            return None
+
+    iso_in  = try_iso(raw_check_in)
+    iso_out = try_iso(raw_check_out)
+
+    if iso_in:
+        check_in = iso_in.strftime("%Y-%m-%d")
+    if iso_out:
+        check_out = iso_out.strftime("%Y-%m-%d")
+
+    # 2️⃣ If ISO missing → use flight parser
+    if not iso_in or not iso_out:
+        normalized = normalize_date(f"{raw_check_in} to {raw_check_out}")
+        if normalized:
+            check_in = normalized[0]
+            if len(normalized) > 1:
+                check_out = normalized[1]
+
+    # 3️⃣ If only checkIn provided → compute nights
+    if check_in and not check_out:
+        d = datetime.fromisoformat(check_in)
+        check_out = (d + timedelta(days=nights)).strftime("%Y-%m-%d")
+
+    print(f"[HOTELBEDS] Nights requested = {nights}")
+    print(f"[HOTELBEDS] Parsed dates → checkIn={check_in}, checkOut={check_out}")
+
+        # =================================================================
+    # 🏨 HOTEL FUTURE DATE CORRECTION — PRESERVE NIGHTS
+    # =================================================================
+    today = datetime.now().date()
+
+    ci = datetime.fromisoformat(check_in).date()
+    co = datetime.fromisoformat(check_out).date()
+
+    stay_nights = (co - ci).days  # ALWAYS preserve nights
+
+    # CASE 1: BOTH dates are in the past → shift entire range forward
+    if ci < today and co < today:
+        # try same calendar dates this year
+        ci = ci.replace(year=today.year)
+        co = ci + timedelta(days=stay_nights)
+
+        # if still in past (e.g., February < November) → shift to next year
+        if co < today:
+            ci = ci.replace(year=today.year + 1)
+            co = ci + timedelta(days=stay_nights)
+
+    # CASE 2: Check-in is in past but check-out is future → shift both
+    elif ci < today <= co:
+        ci = today
+        co = ci + timedelta(days=stay_nights)
+
+    # 🚫 CASE 3: NEVER collapse multi-night stays
+    check_in  = ci.strftime("%Y-%m-%d")
+    check_out = co.strftime("%Y-%m-%d")
+
+    print(f"[HOTELBEDS] Future-corrected dates → checkIn={check_in}, checkOut={check_out}")
+
+
+    # =================================================================
+    # VALIDATION
+    # =================================================================
     if not city or not check_in or not check_out:
         print("[HOTELBEDS] ❌ Missing required search fields.")
         return jsonify({
@@ -2105,9 +2177,12 @@ def api_search_hotels(data=None):
             "text": "⚠️ Missing hotel search information."
         })
 
-    # ------------------------------------------------------
-    # ✔ VALID HOTELBEDS DESTINATION CODES
-    # ------------------------------------------------------
+    adults = data.get("adults", 1)
+    rooms  = data.get("rooms", 1)
+
+    # =================================================================
+    # HOTELBEDS DESTINATION CODES
+    # =================================================================
     def get_hotelbeds_city_code(city_name):
         mapping = {
             "paris": "PAR",
@@ -2134,9 +2209,9 @@ def api_search_hotels(data=None):
 
     print(f"[HOTELBEDS] Using destination code: {destination_code}")
 
-    # ------------------------------------------------------
-    # 🧾 Build Hotelbeds request body
-    # ------------------------------------------------------
+    # =================================================================
+    # HOTELBEDS REQUEST BODY
+    # =================================================================
     body = {
         "stay": {
             "checkIn":  check_in,
@@ -2151,9 +2226,9 @@ def api_search_hotels(data=None):
         }
     }
 
-    # ------------------------------------------------------
-    # 🔐 Authentication Headers
-    # ------------------------------------------------------
+    # =================================================================
+    # HOTELBEDS SIGNATURE + HEADERS
+    # =================================================================
     sig, ts = hotelbeds_signature()
     headers = {
         "Accept": "application/json",
@@ -2165,9 +2240,9 @@ def api_search_hotels(data=None):
 
     print("[HOTELBEDS] Sending request to API...")
 
-        # ------------------------------------------------------
-    # 🌐 Send Hotelbeds API request
-    # ------------------------------------------------------
+    # =================================================================
+    # HOTELBEDS API CALL
+    # =================================================================
     try:
         resp = requests.post(HOTELBEDS_ENDPOINT, headers=headers, json=body)
         print("[HOTELBEDS] Response Status:", resp.status_code)
@@ -2175,14 +2250,10 @@ def api_search_hotels(data=None):
 
         response_json = resp.json()
 
-        # Correct nested structure: hotels.hotels
         raw_hotels = response_json.get("hotels", {}).get("hotels", [])
+        print(f"[HOTELBEDS] Found {len(raw_hotels)} hotels.")
 
-        print(f"[HOTELBEDS] Found {len(raw_hotels)} total hotels.")
-
-        # Limit to 5 hotels max
-        raw_hotels = raw_hotels[:5]
-
+        raw_hotels = raw_hotels[:5]  # Limit
         print(f"[HOTELBEDS] Returning {len(raw_hotels)} hotels after limit.")
 
     except Exception as e:
@@ -2192,20 +2263,15 @@ def api_search_hotels(data=None):
             "text": f"❌ Hotel search failed: {str(e)}"
         })
 
-    # ------------------------------------------------------
-    # 🧩 Transform Hotelbeds data → Chat UI format
-    # ------------------------------------------------------
+    # =================================================================
+    # TRANSFORM HOTEL DATA FOR FRONTEND
+    # =================================================================
     results = []
 
-    for idx, h in enumerate(raw_hotels):
-
-
-        hotel_code = h.get("code")  # numeric ID
-
-        # Fetch hotel images from content API
+    for h in raw_hotels:
+        hotel_code = h.get("code")
         images = get_hotelbeds_images(hotel_code)
 
-        # Address fallback handling
         raw_addr = h.get("address", {})
         address = (
             raw_addr.get("content") or
@@ -2214,34 +2280,29 @@ def api_search_hotels(data=None):
             "Address unavailable"
         )
 
-        # Amenities
         facilities = h.get("facilities", [])
         amenity_list = [f.get("description") for f in facilities if "description" in f]
 
-        # Rate block
         rate_list = h.get("rates", [])
         price_block = rate_list[0] if rate_list else {}
 
         results.append({
-    "id": hotel_code,   # ✅ REQUIRED FIX
-    "name": h.get("name"),
-    "address": address,
-    "rating": h.get("categoryName", "0").replace("stars", "").strip(),
-    "latitude": h.get("coordinates", {}).get("latitude"),
-    "longitude": h.get("coordinates", {}).get("longitude"),
-
-    "images": images,
-
-    "price": {
-        "amount": extract_price(h),
-        "currency": price_block.get("currency", "AED")
-    },
-
-    "description": h.get("description", {}).get("content", ""),
-    "amenities": amenity_list,
-    "bookingLink": price_block.get("rateKey", "")
-})
-
+            "id": hotel_code,
+            "name": h.get("name"),
+            "address": address,
+            "rating": h.get("categoryName", "0").replace("stars", "").strip(),
+            "latitude": h.get("coordinates", {}).get("latitude"),
+            "longitude": h.get("coordinates", {}).get("longitude"),
+            "images": images,
+            "price": {
+                "amount": extract_price(h),
+                "currency": price_block.get("currency", "AED")
+            },
+            "nights": stay_nights,
+            "description": h.get("description", {}).get("content", ""),
+            "amenities": amenity_list,
+            "bookingLink": price_block.get("rateKey", "")
+        })
 
     print("[HOTELBEDS] ✔ Returning hotels with images.")
 
@@ -2249,6 +2310,7 @@ def api_search_hotels(data=None):
         "type": "hotels",
         "data": results
     })
+
 
 def get_hotelbeds_images(hotel_code):
     if hotel_code in hotel_image_cache:
@@ -2472,6 +2534,7 @@ if __name__ == "__main__":
         debug=True,
         use_reloader=False
     )
+
 
 
 
