@@ -2539,7 +2539,10 @@ function updateHotelCart() {
             <div class="font-bold text-green-700">
                 ${h.price} ${h.currency}
             </div>
-            <div class="text-gray-500">${h.nights} night(s)</div>
+            <div class="text-gray-500">
+    ${h.nights} night${h.nights > 1 ? "s" : ""}
+</div>
+
         </div>
     `).join("");
 }
@@ -2578,18 +2581,20 @@ function renderHotelsFromBackend(hotels) {
 
         // Room section like Booking.com
         const roomHTML = `
-            <div class="text-sm font-semibold text-gray-800 mt-1">${esc(info.roomName || "Standard Room")}</div>
-            <div class="text-xs text-gray-600">${esc(info.beds || "")}</div>
+    <div class="text-sm font-semibold text-gray-800 mt-1">${esc(info.roomName || "Standard Room")}</div>
+    <div class="text-xs text-gray-600">${esc(info.beds || "")}</div>
 
-            <div class="text-xs text-green-700 mt-1">
-                ${info.freeCancellation ? "✔ Free cancellation<br>" : ""}
-                ${info.noPrepayment ? "✔ No prepayment needed – pay at the property" : ""}
-            </div>
+    <div class="text-xs text-green-700 mt-1">
+        ${info.freeCancellation ? "✔ Free cancellation<br>" : ""}
+        ${info.noPrepayment ? "✔ No prepayment needed – pay at the property" : ""}
+    </div>
 
-            <div class="text-xs text-gray-600 mt-1">
-                ${esc(info.nights || "1 night")}, ${esc(info.adults || "2 adults")}
-            </div>
-        `;
+    <div class="text-xs text-gray-600 mt-1">
+        ${info.nights} night${info.nights > 1 ? "s" : ""}, 
+        ${info.adults || 1} adult${(info.adults || 1) > 1 ? "s" : ""}
+    </div>
+`;
+
 
         // PRICE BLOCK — now BELOW details
         const priceHTML = `
