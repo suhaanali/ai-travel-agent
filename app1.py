@@ -2066,9 +2066,7 @@ import hashlib
 import requests
 from flask import jsonify, request
 
-HOTELBEDS_API_KEY = "9101ce7fef6713e489f5367dc33cdbae"
-HOTELBEDS_SECRET  = "5983147a3f"
-HOTELBEDS_ENDPOINT = "https://api.test.hotelbeds.com/hotel-api/1.0/hotels"
+
 
 def hotelbeds_signature():
     ts = str(int(time.time()))
@@ -2534,6 +2532,7 @@ if __name__ == "__main__":
         debug=True,
         use_reloader=False
     )
+
 
 
 
